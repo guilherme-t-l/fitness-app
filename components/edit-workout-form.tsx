@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Plus, Trash2, Save, ChevronUp, ChevronDown, GripVertical } from "lucide-react"
 import { AutocompleteInput } from "@/components/ui/autocomplete-input"
 import { ExerciseDndWrapper } from "@/components/ui/exercise-dnd-wrapper"
+import { calculateWorkoutDuration } from "@/lib/utils"
 
 interface Exercise {
   id: string
@@ -77,6 +78,7 @@ export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
   const [difficulty, setDifficulty] = useState<"Beginner" | "Intermediate" | "Advanced">(workout.difficulty)
   const [category, setCategory] = useState(workout.category)
   const [estimatedDuration, setEstimatedDuration] = useState(workout.estimatedDuration)
+  const [durationManuallyEdited, setDurationManuallyEdited] = useState(false)
   const [exercises, setExercises] = useState<Exercise[]>(workout.exercises)
 
   const addExercise = () => {
@@ -135,6 +137,13 @@ export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
     onSubmit(updatedWorkout)
   }
 
+  useEffect(() => {
+    if (!durationManuallyEdited) {
+      const min = calculateWorkoutDuration(exercises)
+      setEstimatedDuration(min ? `${min} min` : "")
+    }
+  }, [exercises, durationManuallyEdited])
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Basic Info */}
@@ -159,7 +168,10 @@ export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
           <Input
             id="duration"
             value={estimatedDuration}
-            onChange={(e) => setEstimatedDuration(e.target.value)}
+            onChange={(e) => {
+              setEstimatedDuration(e.target.value)
+              setDurationManuallyEdited(true)
+            }}
             placeholder="e.g., 45 min"
             className="bg-gray-800/50 border-gray-600 text-white"
           />
