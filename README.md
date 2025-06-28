@@ -96,13 +96,6 @@ Open [http://localhost:3000](http://localhost:3000) and start creating.
 - **Accessible** — Everyone deserves to look good while getting strong
 - **Performance first** — No lag, no excuses
 
-## 🤝 Contributing
-
-This is a personal project, but if you're vibing with the aesthetic and want to contribute:
-
-- Report bugs (we squash them like PRs)
-- Suggest features (the wilder, the better)
-- Share your experience (we love feedback)
 
 ## 👨‍💻 Built By
 
