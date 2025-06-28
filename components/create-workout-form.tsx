@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Plus, Trash2, Save, ChevronUp, ChevronDown, GripVertical } from "lucide-react"
+import { AutocompleteInput } from "@/components/ui/autocomplete-input"
 
 interface Exercise {
   id: string
@@ -66,7 +67,6 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
   const [category, setCategory] = useState("")
   const [estimatedDuration, setEstimatedDuration] = useState("")
   const [exercises, setExercises] = useState<Exercise[]>([])
-  const [useCustomName, setUseCustomName] = useState<Record<string, boolean>>({})
 
   const addExercise = () => {
     const newExercise: Exercise = {
@@ -85,11 +85,6 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
 
   const removeExercise = (id: string) => {
     setExercises(exercises.filter((exercise) => exercise.id !== id))
-    setUseCustomName((prev) => {
-      const newState = { ...prev }
-      delete newState[id]
-      return newState
-    })
   }
 
   const moveExerciseUp = (index: number) => {
@@ -106,13 +101,6 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
       ;[newExercises[index], newExercises[index + 1]] = [newExercises[index + 1], newExercises[index]]
       setExercises(newExercises)
     }
-  }
-
-  const toggleCustomName = (exerciseId: string) => {
-    setUseCustomName((prev) => ({
-      ...prev,
-      [exerciseId]: !prev[exerciseId],
-    }))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -250,39 +238,13 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
 
               <div className="grid md:grid-cols-6 gap-4 items-end">
                 <div className="md:col-span-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-gray-300 text-sm">Exercise</Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleCustomName(exercise.id)}
-                      className="text-xs text-blue-400 hover:text-blue-300 h-auto p-1"
-                    >
-                      {useCustomName[exercise.id] ? "Use Library" : "Custom Name"}
-                    </Button>
-                  </div>
-                  {useCustomName[exercise.id] ? (
-                    <Input
-                      value={exercise.name}
-                      onChange={(e) => updateExercise(exercise.id, "name", e.target.value)}
-                      placeholder="Enter custom exercise name"
-                      className="bg-gray-700 border-gray-600 text-white"
-                    />
-                  ) : (
-                    <Select value={exercise.name} onValueChange={(value) => updateExercise(exercise.id, "name", value)}>
-                      <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                        <SelectValue placeholder="Select exercise" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {exerciseLibrary.map((ex) => (
-                          <SelectItem key={ex} value={ex}>
-                            {ex}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                  <Label className="text-gray-300 text-sm">Exercise</Label>
+                  <AutocompleteInput
+                    value={exercise.name}
+                    onChange={(value) => updateExercise(exercise.id, "name", value)}
+                    placeholder="Type exercise name..."
+                    suggestions={exerciseLibrary}
+                  />
                 </div>
                 <div>
                   <Label className="text-gray-300 text-sm">Sets</Label>
