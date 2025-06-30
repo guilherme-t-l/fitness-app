@@ -6,92 +6,31 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Search, Play, Edit, Trash2, Clock, Dumbbell, Plus, Calendar } from "lucide-react"
+import { Search, Play, Edit, Trash2, Clock, Dumbbell, Plus, Calendar, Loader2 } from "lucide-react"
 import { CreateWorkoutForm } from "@/components/create-workout-form"
 import { EditWorkoutForm } from "@/components/edit-workout-form"
 import { WorkoutSession } from "@/components/workout-session"
+import { useWorkouts } from "@/hooks/useWorkouts"
+import { type FrontendWorkout, type FrontendExercise } from "@/lib/database"
 
-interface Exercise {
-  id: string
-  name: string
-  sets: number
-  reps: string
-  weight?: string
-  restTime?: string
-  notes?: string
-  adjustment?: string
-  description?: string
-}
+// Use the types from database service
+type Exercise = FrontendExercise
+type Workout = FrontendWorkout
 
-interface Workout {
-  id: string
-  name: string
-  description: string
-  exercises: Exercise[]
-  estimatedDuration: string
-  difficulty: "Beginner" | "Intermediate" | "Advanced"
-  category: string
-  createdAt: string
-  lastCompleted?: string
-  completions: number
-}
-
-const sampleWorkouts: Workout[] = [
-  {
-    id: "1",
-    name: "Upper Body Strength",
-    description: "Focus on building upper body muscle and strength",
-    exercises: [
-      { id: "1", name: "Push-ups", sets: 3, reps: "12-15", restTime: "60s" },
-      { id: "2", name: "Pull-ups", sets: 3, reps: "8-10", restTime: "90s" },
-      { id: "3", name: "Bench Press", sets: 4, reps: "8-10", weight: "70kg", restTime: "120s" },
-      { id: "4", name: "Overhead Press", sets: 3, reps: "10-12", weight: "40kg", restTime: "90s" },
-    ],
-    estimatedDuration: "45 min",
-    difficulty: "Intermediate",
-    category: "Strength",
-    createdAt: "2024-01-10",
-    lastCompleted: "2024-01-15",
-    completions: 8,
-  },
-  {
-    id: "2",
-    name: "Full Body HIIT",
-    description: "High-intensity interval training for full body conditioning",
-    exercises: [
-      { id: "5", name: "Burpees", sets: 4, reps: "30s", restTime: "30s" },
-      { id: "6", name: "Mountain Climbers", sets: 4, reps: "30s", restTime: "30s" },
-      { id: "7", name: "Jump Squats", sets: 4, reps: "30s", restTime: "30s" },
-      { id: "8", name: "High Knees", sets: 4, reps: "30s", restTime: "30s" },
-    ],
-    estimatedDuration: "25 min",
-    difficulty: "Advanced",
-    category: "Cardio",
-    createdAt: "2024-01-12",
-    completions: 5,
-  },
-  {
-    id: "3",
-    name: "Lower Body Focus",
-    description: "Comprehensive lower body strength and power workout",
-    exercises: [
-      { id: "9", name: "Squats", sets: 4, reps: "12-15", weight: "60kg", restTime: "90s" },
-      { id: "10", name: "Deadlifts", sets: 3, reps: "8-10", weight: "80kg", restTime: "120s" },
-      { id: "11", name: "Lunges", sets: 3, reps: "12 each leg", restTime: "60s" },
-      { id: "12", name: "Calf Raises", sets: 4, reps: "15-20", weight: "20kg", restTime: "45s" },
-    ],
-    estimatedDuration: "50 min",
-    difficulty: "Intermediate",
-    category: "Strength",
-    createdAt: "2024-01-08",
-    lastCompleted: "2024-01-14",
-    completions: 12,
-  },
-]
+// Sample workouts moved to database - no longer needed here
 
 export default function WorkoutsPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [workouts, setWorkouts] = useState<Workout[]>(sampleWorkouts)
+  const { 
+    workouts, 
+    loading, 
+    error, 
+    createWorkout, 
+    updateWorkout, 
+    deleteWorkout, 
+    completeWorkout, 
+    updateWorkoutExercises 
+  } = useWorkouts()
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -118,15 +57,13 @@ export default function WorkoutsPage() {
     }
   }
 
-  const handleCreateWorkout = (newWorkout: Omit<Workout, "id" | "createdAt" | "completions">) => {
-    const workout: Workout = {
-      ...newWorkout,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      completions: 0,
+  const handleCreateWorkout = async (newWorkout: Omit<Workout, "id" | "createdAt" | "completions">) => {
+    try {
+      await createWorkout(newWorkout)
+      setIsCreateDialogOpen(false)
+    } catch (error) {
+      console.error('Failed to create workout:', error)
     }
-    setWorkouts([...workouts, workout])
-    setIsCreateDialogOpen(false)
   }
 
   const handleEditWorkout = (workout: Workout) => {
@@ -134,18 +71,15 @@ export default function WorkoutsPage() {
     setIsEditDialogOpen(true)
   }
 
-  const handleUpdateWorkout = (updatedWorkout: Omit<Workout, "id" | "createdAt" | "completions">) => {
+  const handleUpdateWorkout = async (updatedWorkout: Omit<Workout, "id" | "createdAt" | "completions">) => {
     if (editingWorkout) {
-      const workout: Workout = {
-        ...updatedWorkout,
-        id: editingWorkout.id,
-        createdAt: editingWorkout.createdAt,
-        completions: editingWorkout.completions,
-        lastCompleted: editingWorkout.lastCompleted,
+      try {
+        await updateWorkout(editingWorkout.id, updatedWorkout)
+        setIsEditDialogOpen(false)
+        setEditingWorkout(null)
+      } catch (error) {
+        console.error('Failed to update workout:', error)
       }
-      setWorkouts(workouts.map((w) => (w.id === editingWorkout.id ? workout : w)))
-      setIsEditDialogOpen(false)
-      setEditingWorkout(null)
     }
   }
 
@@ -153,25 +87,31 @@ export default function WorkoutsPage() {
     setActiveWorkout(workout)
   }
 
-  const handleCompleteWorkout = () => {
+  const handleCompleteWorkout = async () => {
     if (activeWorkout) {
-      setWorkouts(
-        workouts.map((w) =>
-          w.id === activeWorkout.id
-            ? { ...w, completions: w.completions + 1, lastCompleted: new Date().toISOString() }
-            : w,
-        ),
-      )
-      setActiveWorkout(null)
+      try {
+        await completeWorkout(activeWorkout.id)
+        setActiveWorkout(null)
+      } catch (error) {
+        console.error('Failed to complete workout:', error)
+      }
     }
   }
 
-  const handleDeleteWorkout = (workoutId: string) => {
-    setWorkouts(workouts.filter((w) => w.id !== workoutId))
+  const handleDeleteWorkout = async (workoutId: string) => {
+    try {
+      await deleteWorkout(workoutId)
+    } catch (error) {
+      console.error('Failed to delete workout:', error)
+    }
   }
 
-  const handleSaveWorkoutChanges = (workoutId: string, updatedExercises: Exercise[]) => {
-    setWorkouts(workouts.map((w) => (w.id === workoutId ? { ...w, exercises: updatedExercises } : w)))
+  const handleSaveWorkoutChanges = async (workoutId: string, updatedExercises: Exercise[]) => {
+    try {
+      await updateWorkoutExercises(workoutId, updatedExercises)
+    } catch (error) {
+      console.error('Failed to save workout changes:', error)
+    }
   }
 
   if (activeWorkout) {
@@ -182,6 +122,33 @@ export default function WorkoutsPage() {
         onExit={() => setActiveWorkout(null)}
         onSaveChanges={handleSaveWorkoutChanges}
       />
+    )
+  }
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-white mx-auto" />
+          <p className="text-gray-400">Loading your workouts...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="text-red-400 text-lg">⚠️ {error}</div>
+          <p className="text-gray-400">Please check your database connection</p>
+          <Button onClick={() => window.location.reload()} className="primary-glow">
+            Try Again
+          </Button>
+        </div>
+      </div>
     )
   }
 
