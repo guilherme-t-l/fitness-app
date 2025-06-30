@@ -82,7 +82,7 @@ Open [http://localhost:3000](http://localhost:3000) and start creating.
 
 - [ ] **User authentication** — Your data, your control
 - [ ] **Mobile app** — React Native or Expo
-- [ ] **Persistent storage** — Database integration
+- [done] **Persistent storage** — Database integration
 - [ ] **Progress analytics** — Deep insights into your evolution
 - [ ] **Social features** — Share routines, compete with friends
 - [ ] **Workout templates** — Pre-built routines for different goals
