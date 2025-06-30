@@ -102,6 +102,10 @@ export const databaseService = {
   // Get all workouts with exercises
   async getWorkouts(): Promise<FrontendWorkout[]> {
     try {
+      if (!supabase) {
+        throw new Error('Supabase not configured. Please set up your environment variables.')
+      }
+
       // Get all workouts
       const { data: workouts, error: workoutsError } = await supabase
         .from('workouts')
@@ -142,6 +146,10 @@ export const databaseService = {
   // Get single workout with exercises
   async getWorkout(id: string): Promise<FrontendWorkout | null> {
     try {
+      if (!supabase) {
+        throw new Error('Supabase not configured. Please set up your environment variables.')
+      }
+
       const { data: workout, error: workoutError } = await supabase
         .from('workouts')
         .select('*')
@@ -169,6 +177,10 @@ export const databaseService = {
   // Create new workout with exercises
   async createWorkout(workoutData: Omit<FrontendWorkout, 'id' | 'createdAt' | 'completions'>): Promise<FrontendWorkout> {
     try {
+      if (!supabase) {
+        throw new Error('Supabase not configured. Please set up your environment variables.')
+      }
+
       const { workout, exercises } = convertWorkoutToDatabase(workoutData)
 
       // Insert workout first
@@ -204,6 +216,10 @@ export const databaseService = {
   // Update workout
   async updateWorkout(id: string, workoutData: Partial<Omit<FrontendWorkout, 'id' | 'createdAt' | 'completions'>>): Promise<FrontendWorkout> {
     try {
+      if (!supabase) {
+        throw new Error('Supabase not configured. Please set up your environment variables.')
+      }
+
       // Update workout data
       const workoutUpdate: WorkoutUpdate = {}
       if (workoutData.name) workoutUpdate.name = workoutData.name
@@ -262,6 +278,10 @@ export const databaseService = {
   // Delete workout
   async deleteWorkout(id: string): Promise<void> {
     try {
+      if (!supabase) {
+        throw new Error('Supabase not configured. Please set up your environment variables.')
+      }
+
       // Delete exercises first (due to foreign key constraint)
       const { error: exercisesError } = await supabase
         .from('exercises')
@@ -286,6 +306,10 @@ export const databaseService = {
   // Update workout completion
   async updateWorkoutCompletion(id: string): Promise<void> {
     try {
+      if (!supabase) {
+        throw new Error('Supabase not configured. Please set up your environment variables.')
+      }
+
       const { error } = await supabase
         .from('workouts')
         .update({
@@ -304,6 +328,10 @@ export const databaseService = {
   // Update exercises for a workout
   async updateWorkoutExercises(workoutId: string, exercises: FrontendExercise[]): Promise<void> {
     try {
+      if (!supabase) {
+        throw new Error('Supabase not configured. Please set up your environment variables.')
+      }
+
       // Delete existing exercises
       const { error: deleteError } = await supabase
         .from('exercises')
