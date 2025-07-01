@@ -23,7 +23,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <NavigationBar />
-          <div className="min-h-screen">
+          <div className="min-h-screen pt-16">
             <main className="container mx-auto px-4 py-8">{children}</main>
           </div>
         </ThemeProvider>
