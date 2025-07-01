@@ -5,153 +5,209 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Search, Play, Edit, Trash2, Calendar, Clock, Dumbbell, Filter } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Search, Play, Edit, Trash2, Clock, Dumbbell, Plus, Calendar, Loader2 } from "lucide-react"
+import { CreateWorkoutForm } from "@/components/create-workout-form"
+import { EditWorkoutForm } from "@/components/edit-workout-form"
+import { WorkoutSession } from "@/components/workout-session"
+import { useWorkouts } from "@/hooks/useWorkouts"
+import { type FrontendWorkout, type FrontendExercise } from "@/lib/database"
 
-interface Workout {
-  id: string
-  name: string
-  description: string
-  duration: string
-  exercises: number
-  difficulty: "Beginner" | "Intermediate" | "Advanced"
-  category: string
-  lastCompleted?: string
-  completions: number
-}
+// Use the types from database service
+type Exercise = FrontendExercise
+type Workout = FrontendWorkout
 
-const sampleWorkouts: Workout[] = [
-  {
-    id: "1",
-    name: "Cyber Strength Circuit",
-    description: "High-intensity full-body workout designed for maximum gains",
-    duration: "45 min",
-    exercises: 8,
-    difficulty: "Advanced",
-    category: "Strength",
-    lastCompleted: "2024-01-15",
-    completions: 12,
-  },
-  {
-    id: "2",
-    name: "Neural Network Cardio",
-    description: "AI-optimized cardio routine for enhanced endurance",
-    duration: "30 min",
-    exercises: 6,
-    difficulty: "Intermediate",
-    category: "Cardio",
-    lastCompleted: "2024-01-14",
-    completions: 8,
-  },
-  {
-    id: "3",
-    name: "Matrix Core Protocol",
-    description: "Core strengthening program inspired by digital aesthetics",
-    duration: "25 min",
-    exercises: 10,
-    difficulty: "Beginner",
-    category: "Core",
-    completions: 5,
-  },
-  {
-    id: "4",
-    name: "Quantum Leg Day",
-    description: "Explosive lower body workout for power and definition",
-    duration: "50 min",
-    exercises: 7,
-    difficulty: "Advanced",
-    category: "Legs",
-    lastCompleted: "2024-01-13",
-    completions: 15,
-  },
-]
+// Sample workouts moved to database - no longer needed here
 
-export default function Workouts() {
+export default function WorkoutsPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All")
-  const [workouts] = useState<Workout[]>(sampleWorkouts)
+  const { 
+    workouts, 
+    loading, 
+    error, 
+    createWorkout, 
+    updateWorkout, 
+    deleteWorkout, 
+    completeWorkout, 
+    updateWorkoutExercises 
+  } = useWorkouts()
+  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
+  const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null)
 
-  const categories = ["All", "Strength", "Cardio", "Core", "Legs", "Upper Body"]
-
-  const filteredWorkouts = workouts.filter((workout) => {
-    const matchesSearch =
+  const filteredWorkouts = workouts.filter(
+    (workout) =>
       workout.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      workout.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = selectedCategory === "All" || workout.category === selectedCategory
-    return matchesSearch && matchesCategory
-  })
+      workout.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      workout.category.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case "Beginner":
-        return "bg-green-500/20 text-green-400"
+        return "bg-green-500/20 text-green-400 border-green-500/30"
       case "Intermediate":
-        return "bg-yellow-500/20 text-yellow-400"
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
       case "Advanced":
-        return "bg-red-500/20 text-red-400"
+        return "bg-red-500/20 text-red-400 border-red-500/30"
       default:
-        return "bg-gray-500/20 text-gray-400"
+        return "bg-gray-500/20 text-gray-400 border-gray-500/30"
     }
+  }
+
+  const handleCreateWorkout = async (newWorkout: Omit<Workout, "id" | "createdAt" | "completions">) => {
+    try {
+      await createWorkout(newWorkout)
+      setIsCreateDialogOpen(false)
+    } catch (error) {
+      console.error('Failed to create workout:', error)
+    }
+  }
+
+  const handleEditWorkout = (workout: Workout) => {
+    setEditingWorkout(workout)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateWorkout = async (updatedWorkout: Omit<Workout, "id" | "createdAt" | "completions">) => {
+    if (editingWorkout) {
+      try {
+        await updateWorkout(editingWorkout.id, updatedWorkout)
+        setIsEditDialogOpen(false)
+        setEditingWorkout(null)
+      } catch (error) {
+        console.error('Failed to update workout:', error)
+      }
+    }
+  }
+
+  const handleStartWorkout = (workout: Workout) => {
+    setActiveWorkout(workout)
+  }
+
+  const handleCompleteWorkout = async () => {
+    if (activeWorkout) {
+      try {
+        await completeWorkout(activeWorkout.id)
+        setActiveWorkout(null)
+      } catch (error) {
+        console.error('Failed to complete workout:', error)
+      }
+    }
+  }
+
+  const handleDeleteWorkout = async (workoutId: string) => {
+    try {
+      await deleteWorkout(workoutId)
+    } catch (error) {
+      console.error('Failed to delete workout:', error)
+    }
+  }
+
+  const handleSaveWorkoutChanges = async (workoutId: string, updatedExercises: Exercise[]) => {
+    try {
+      await updateWorkoutExercises(workoutId, updatedExercises)
+    } catch (error) {
+      console.error('Failed to save workout changes:', error)
+    }
+  }
+
+  if (activeWorkout) {
+    return (
+      <WorkoutSession
+        workout={activeWorkout}
+        onComplete={handleCompleteWorkout}
+        onExit={() => setActiveWorkout(null)}
+        onSaveChanges={handleSaveWorkoutChanges}
+      />
+    )
+  }
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-white mx-auto" />
+          <p className="text-gray-400">Loading your workouts...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="text-red-400 text-lg">⚠️ {error}</div>
+          <p className="text-gray-400">Please check your database connection</p>
+          <Button onClick={() => window.location.reload()} className="primary-glow">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
-        <h1 className="text-4xl md:text-5xl font-cyber font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">
-          Workout Library
-        </h1>
-        <p className="text-gray-400">Your collection of training programs</p>
+        <h1 className="text-4xl md:text-5xl font-bold text-white">My Workouts</h1>
+        <p className="text-gray-400 text-lg">Create, track, and complete your fitness routines</p>
       </div>
 
-      {/* Search and Filter */}
-      <Card className="cyber-border bg-black/40 backdrop-blur-sm">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search workouts..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-800/50 border-gray-600 text-white"
-              />
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {categories.map((category) => (
-                <Button
-                  key={category}
-                  variant={selectedCategory === category ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedCategory(category)}
-                  className={
-                    selectedCategory === category
-                      ? "bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
-                      : "border-gray-600 text-gray-300 hover:text-cyan-400"
-                  }
-                >
-                  <Filter className="h-4 w-4 mr-1" />
-                  {category}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Search and Create */}
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Search workouts..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 bg-gray-800/50 border-gray-600 text-white"
+          />
+        </div>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="primary-glow text-white font-semibold">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Workout
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gray-900 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white text-xl">Create New Workout</DialogTitle>
+            </DialogHeader>
+            <CreateWorkoutForm onSubmit={handleCreateWorkout} />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Edit Workout Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gray-900 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white text-xl">Edit Workout</DialogTitle>
+          </DialogHeader>
+          {editingWorkout && <EditWorkoutForm workout={editingWorkout} onSubmit={handleUpdateWorkout} />}
+        </DialogContent>
+      </Dialog>
 
       {/* Workouts Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredWorkouts.map((workout) => (
-          <Card
-            key={workout.id}
-            className="cyber-border bg-black/40 backdrop-blur-sm hover:cyber-glow transition-all duration-300"
-          >
+          <Card key={workout.id} className="card-glow transition-all duration-300">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
                   <CardTitle className="text-white text-lg">{workout.name}</CardTitle>
                   <div className="flex items-center space-x-2">
                     <Badge className={getDifficultyColor(workout.difficulty)}>{workout.difficulty}</Badge>
-                    <Badge variant="outline" className="border-cyan-400/50 text-cyan-400">
+                    <Badge variant="outline" className="border-green-400/50 text-green-400">
                       {workout.category}
                     </Badge>
                   </div>
@@ -163,15 +219,15 @@ export default function Workouts() {
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center space-x-2 text-gray-300">
-                  <Clock className="h-4 w-4 text-cyan-400" />
-                  <span>{workout.duration}</span>
+                  <Clock className="h-4 w-4 text-green-400" />
+                  <span>{workout.estimatedDuration}</span>
                 </div>
                 <div className="flex items-center space-x-2 text-gray-300">
-                  <Dumbbell className="h-4 w-4 text-purple-400" />
-                  <span>{workout.exercises} exercises</span>
+                  <Dumbbell className="h-4 w-4 text-blue-400" />
+                  <span>{workout.exercises.length} exercises</span>
                 </div>
                 <div className="flex items-center space-x-2 text-gray-300">
-                  <Calendar className="h-4 w-4 text-green-400" />
+                  <Calendar className="h-4 w-4 text-purple-400" />
                   <span>{workout.completions} completed</span>
                 </div>
                 {workout.lastCompleted && (
@@ -183,7 +239,8 @@ export default function Workouts() {
 
               <div className="flex space-x-2 pt-2">
                 <Button
-                  className="flex-1 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
+                  onClick={() => handleStartWorkout(workout)}
+                  className="flex-1 primary-glow text-white font-semibold"
                   size="sm"
                 >
                   <Play className="h-4 w-4 mr-2" />
@@ -192,14 +249,16 @@ export default function Workouts() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-gray-600 text-gray-300 hover:text-cyan-400 bg-transparent"
+                  onClick={() => handleEditWorkout(workout)}
+                  className="border-gray-600 text-gray-300 hover:text-green-400 hover:border-green-400 bg-transparent"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-gray-600 text-gray-300 hover:text-red-400 bg-transparent"
+                  onClick={() => handleDeleteWorkout(workout.id)}
+                  className="border-gray-600 text-gray-300 hover:text-red-400 hover:border-red-400 bg-transparent"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -210,11 +269,11 @@ export default function Workouts() {
       </div>
 
       {filteredWorkouts.length === 0 && (
-        <Card className="cyber-border bg-black/40 backdrop-blur-sm">
+        <Card className="card-glow">
           <CardContent className="p-12 text-center">
             <Dumbbell className="h-16 w-16 mx-auto mb-4 text-gray-600" />
             <h3 className="text-xl font-semibold text-gray-400 mb-2">No workouts found</h3>
-            <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+            <p className="text-gray-500">Try adjusting your search or create a new workout</p>
           </CardContent>
         </Card>
       )}
