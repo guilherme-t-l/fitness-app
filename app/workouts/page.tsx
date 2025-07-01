@@ -153,7 +153,7 @@ export default function WorkoutsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-4xl mx-auto px-4 md:px-8 space-y-10">
       {/* Header */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl md:text-5xl font-bold text-white">My Workouts</h1>
@@ -198,13 +198,13 @@ export default function WorkoutsPage() {
       </Dialog>
 
       {/* Workouts Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-8">
         {filteredWorkouts.map((workout) => (
-          <Card key={workout.id} className="card-glow transition-all duration-300">
-            <CardHeader>
-              <div className="flex items-start justify-between">
+          <Card key={workout.id} className="card-glow transition-all duration-300 flex flex-col min-h-[320px] h-full p-6 bg-gray-900/80 border border-gray-800 shadow-xl">
+            <div className="flex-1 flex flex-col">
+              <div className="flex items-start justify-between mb-2">
                 <div className="space-y-2">
-                  <CardTitle className="text-white text-lg">{workout.name}</CardTitle>
+                  <CardTitle className="text-white text-xl font-bold">{workout.name}</CardTitle>
                   <div className="flex items-center space-x-2">
                     <Badge className={getDifficultyColor(workout.difficulty)}>{workout.difficulty}</Badge>
                     <Badge variant="outline" className="border-green-400/50 text-green-400">
@@ -213,11 +213,8 @@ export default function WorkoutsPage() {
                   </div>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-gray-400 text-sm">{workout.description}</p>
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <p className="text-gray-400 text-base mb-4 line-clamp-3">{workout.description}</p>
+              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div className="flex items-center space-x-2 text-gray-300">
                   <Clock className="h-4 w-4 text-green-400" />
                   <span>{workout.estimatedDuration}</span>
@@ -236,8 +233,7 @@ export default function WorkoutsPage() {
                   </div>
                 )}
               </div>
-
-              <div className="flex space-x-2 pt-2">
+              <div className="mt-auto flex space-x-2 pt-2">
                 <Button
                   onClick={() => handleStartWorkout(workout)}
                   className="flex-1 primary-glow text-white font-semibold"
@@ -263,7 +259,7 @@ export default function WorkoutsPage() {
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
-            </CardContent>
+            </div>
           </Card>
         ))}
       </div>
