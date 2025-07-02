@@ -19,6 +19,11 @@ type Workout = FrontendWorkout
 
 // Sample workouts moved to database - no longer needed here
 
+// TODO: Technical Debt
+// - Extract UI components (WorkoutCard, dialogs, etc.) into separate files for readability and reusability.
+// - Move dialog and selection logic into custom hooks to simplify the main page component.
+// - Consider splitting business logic from UI rendering for future scalability.
+
 export default function WorkoutsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const { 
