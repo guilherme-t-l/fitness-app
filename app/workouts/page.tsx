@@ -158,7 +158,7 @@ export default function WorkoutsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 md:px-8 space-y-10">
+    <div className="max-w-7xl mx-auto px-4 space-y-10">
       {/* Header */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl md:text-5xl font-bold text-white">My Workouts</h1>
@@ -172,7 +172,7 @@ export default function WorkoutsPage() {
           <Input
             placeholder="Search workouts..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
             className="pl-10 bg-gray-800/50 border-gray-600 text-white"
           />
         </div>
@@ -203,23 +203,25 @@ export default function WorkoutsPage() {
       </Dialog>
 
       {/* Workouts Grid */}
-      <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-8">
-        {filteredWorkouts.map((workout) => (
-          <Card key={workout.id} className="card-glow transition-all duration-300 flex flex-col min-h-[320px] h-full p-6 bg-gray-900/80 border border-gray-800 shadow-xl">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-8 max-w-7xl mx-auto px-4">
+        {filteredWorkouts.map((workout: Workout) => (
+          <Card key={workout.id} className="card-glow transition-all duration-300 flex flex-col min-h-[320px] h-full p-6 bg-gray-900/80 border border-gray-800 shadow-xl min-w-[340px]">
             <div className="flex-1 flex flex-col">
               <div className="flex items-start justify-between mb-2">
                 <div className="space-y-2">
                   <CardTitle className="text-white text-xl font-bold">{workout.name}</CardTitle>
                   <div className="flex items-center space-x-2">
-                    <Badge className={getDifficultyColor(workout.difficulty)}>{workout.difficulty}</Badge>
-                    <Badge variant="outline" className="border-green-400/50 text-green-400">
-                      {workout.category}
-                    </Badge>
+                    <Badge className={getDifficultyColor(workout.difficulty)} variant="default">{workout.difficulty}</Badge>
+                    {workout.category && (
+                      <Badge variant="outline" className="border-green-400/50 text-green-400">{workout.category}</Badge>
+                    )}
                   </div>
                 </div>
               </div>
-              <p className="text-gray-400 text-base mb-4 line-clamp-3">{workout.description}</p>
-              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+              <div className="text-gray-400 text-base mb-4 min-h-[2.5em] line-clamp-2">{workout.description || ''}</div>
+              <div className="flex-1" />
+              {/* Info rows: 2x2 grid for icons/stats */}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm mb-6">
                 <div className="flex items-center space-x-2 text-gray-300">
                   <Clock className="h-4 w-4 text-green-400" />
                   <span>{workout.estimatedDuration}</span>
@@ -230,12 +232,15 @@ export default function WorkoutsPage() {
                 </div>
                 <div className="flex items-center space-x-2 text-gray-300">
                   <Calendar className="h-4 w-4 text-purple-400" />
-                  <span>{workout.completions} completed</span>
+                  <span>{workout.completions === 0 ? 'Not started' : workout.completions + ' completed'}</span>
                 </div>
-                {workout.lastCompleted && (
-                  <div className="text-gray-400 text-xs">
-                    Last: {new Date(workout.lastCompleted).toLocaleDateString()}
+                {workout.lastCompleted ? (
+                  <div className="flex items-center space-x-2 text-gray-400 text-xs">
+                    <span>Last:</span>
+                    <span>{new Date(workout.lastCompleted).toLocaleDateString()}</span>
                   </div>
+                ) : (
+                  <div />
                 )}
               </div>
               <div className="mt-auto flex space-x-2 pt-2">

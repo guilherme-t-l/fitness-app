@@ -177,38 +177,40 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={() => {
-            saveChangesToWorkout()
-            onExit()
-          }}
-          className="border-gray-600 text-gray-300 hover:text-white bg-transparent"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Exit Workout
-        </Button>
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white">{workout.name}</h1>
-          <div className="flex items-center space-x-4 text-gray-400 text-sm">
-            <span className="flex items-center space-x-1">
-              <Clock className="h-4 w-4" />
-              <span>{formatTime(currentTime - startTime)}</span>
-            </span>
-            <Badge className="bg-green-500/20 text-green-400">
-              {completedExercises}/{exercises.length} completed
-            </Badge>
-          </div>
+      {/* Header - Responsive Redesign */}
+      <div className="sticky top-0 z-30 bg-gray-950/90 border-b border-gray-800 shadow-sm backdrop-blur px-2 py-2 md:static md:bg-transparent md:border-none md:shadow-none md:backdrop-blur-none">
+        <div className="flex items-center justify-between md:justify-between mb-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              saveChangesToWorkout()
+              onExit()
+            }}
+            className="border-gray-600 text-gray-300 hover:text-white bg-transparent px-2 py-1 text-xs md:text-base md:px-4 md:py-2"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1 md:mr-2" />
+            <span className="hidden xs:inline">Exit</span>
+          </Button>
+          <span className="flex items-center space-x-1 text-gray-400 text-xs md:text-base">
+            <Clock className="h-4 w-4" />
+            <span>{formatTime(currentTime - startTime)}</span>
+          </span>
         </div>
-        <Button
-          onClick={handleCompleteWorkout}
-          className="primary-glow text-white font-semibold"
-          disabled={completedExercises === 0}
-        >
-          Complete Workout
-        </Button>
+        <div className="text-center mb-2">
+          <h1 className="text-lg md:text-2xl font-bold text-white truncate">{workout.name}</h1>
+        </div>
+        <div className="flex items-center justify-between gap-2 md:justify-center md:gap-4">
+          <Badge className="bg-green-500/20 text-green-400 px-2 py-1 text-xs md:text-sm">
+            {completedExercises}/{exercises.length} completed
+          </Badge>
+          <Button
+            onClick={handleCompleteWorkout}
+            className="primary-glow text-white font-semibold px-3 py-1 text-xs md:text-base"
+            disabled={completedExercises === 0}
+          >
+            Complete
+          </Button>
+        </div>
       </div>
 
       {/* Progress */}
