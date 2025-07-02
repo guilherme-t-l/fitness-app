@@ -13,6 +13,8 @@ import { Plus, Trash2, Save, ChevronUp, ChevronDown, GripVertical } from "lucide
 import { AutocompleteInput } from "@/components/ui/autocomplete-input"
 import { ExerciseDndWrapper } from "@/components/ui/exercise-dnd-wrapper"
 import { calculateWorkoutDuration } from "@/lib/utils"
+import { useExercises } from "@/hooks/useExercises"
+import { ExerciseList } from "@/components/exercise/ExerciseList"
 
 interface Exercise {
   id: string

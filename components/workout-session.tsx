@@ -7,6 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { CheckCircle2, Circle, Edit2, X, Clock, ArrowLeft, Check } from "lucide-react"
+import type React from "react"
+import type { SetStateAction } from "react"
+import { useTimer } from "@/hooks/useTimer"
+import { useAutoSave } from "@/hooks/useAutoSave"
 
 interface Exercise {
   id: string
@@ -30,21 +34,21 @@ interface Workout {
   category: string
 }
 
-interface ExerciseState extends Exercise {
-  completed: boolean
-  currentSets: number
-  actualReps?: string
-  actualWeight?: string
-  actualName?: string
-  adjustment?: string
-  description?: string
-}
-
 interface WorkoutSessionProps {
   workout: Workout
   onComplete: () => void
   onExit: () => void
   onSaveChanges: (workoutId: string, updatedExercises: Exercise[]) => void
+}
+
+interface ExerciseState extends Exercise {
+  completed: boolean;
+  currentSets: number;
+  actualReps?: string;
+  actualWeight?: string;
+  actualName?: string;
+  adjustment?: string;
+  description?: string;
 }
 
 export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: WorkoutSessionProps) {
@@ -76,7 +80,7 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   useEffect(() => {
     // Cleanup timeouts on unmount
     return () => {
-      saveTimeouts.forEach((timeout) => clearTimeout(timeout))
+      saveTimeouts.forEach((timeout: NodeJS.Timeout) => clearTimeout(timeout))
     }
   }, [saveTimeouts])
 
@@ -93,14 +97,14 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
 
   const toggleExerciseComplete = (exerciseId: string) => {
     setExercises(
-      exercises.map((ex) =>
-        ex.id === exerciseId ? { ...ex, completed: !ex.completed, currentSets: ex.completed ? 0 : ex.sets } : ex,
+      exercises.map((ex: ExerciseState) =>
+        ex.id === exerciseId ? { ...ex, completed: !ex.completed, currentSets: ex.completed ? 0 : ex.sets } : ex
       ),
     )
   }
 
   const saveExerciseImmediately = (exerciseId: string) => {
-    const updatedExercises: Exercise[] = exercises.map((ex) => ({
+    const updatedExercises: Exercise[] = exercises.map((ex: ExerciseState) => ({
       id: ex.id,
       name: ex.actualName || ex.name,
       sets: ex.sets,
@@ -115,9 +119,9 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
     onSaveChanges(workout.id, updatedExercises)
 
     // Show visual confirmation
-    setSavedChanges((prev) => new Set(prev).add(exerciseId))
+    setSavedChanges((prev: Set<string>) => new Set(prev).add(exerciseId))
     setTimeout(() => {
-      setSavedChanges((prev) => {
+      setSavedChanges((prev: Set<string>) => {
         const newSet = new Set(prev)
         newSet.delete(exerciseId)
         return newSet
@@ -125,8 +129,8 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
     }, 2000)
   }
 
-  const updateExercise = (exerciseId: string, field: keyof ExerciseState, value: any) => {
-    setExercises(exercises.map((ex) => (ex.id === exerciseId ? { ...ex, [field]: value } : ex)))
+  const updateExercise = (exerciseId: string, field: keyof ExerciseState, value: string) => {
+    setExercises(exercises.map((ex: ExerciseState) => (ex.id === exerciseId ? { ...ex, [field]: value } : ex)))
 
     // Clear existing timeout for this exercise
     const existingTimeout = saveTimeouts.get(exerciseId)
@@ -137,21 +141,21 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
     // Set new timeout for auto-save
     const newTimeout = setTimeout(() => {
       saveExerciseImmediately(exerciseId)
-      setSaveTimeouts((prev) => {
+      setSaveTimeouts((prev: Map<string, NodeJS.Timeout>) => {
         const newMap = new Map(prev)
         newMap.delete(exerciseId)
         return newMap
       })
     }, 1000)
 
-    setSaveTimeouts((prev) => new Map(prev).set(exerciseId, newTimeout))
+    setSaveTimeouts((prev: Map<string, NodeJS.Timeout>) => new Map(prev).set(exerciseId, newTimeout))
   }
 
-  const completedExercises = exercises.filter((ex) => ex.completed).length
+  const completedExercises = exercises.filter((ex: ExerciseState) => ex.completed).length
   const progressPercentage = (completedExercises / exercises.length) * 100
 
   const saveChangesToWorkout = () => {
-    const updatedExercises: Exercise[] = exercises.map((ex) => ({
+    const updatedExercises: Exercise[] = exercises.map((ex: ExerciseState) => ({
       id: ex.id,
       name: ex.actualName || ex.name,
       sets: ex.sets,
@@ -222,7 +226,7 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
 
       {/* Exercises */}
       <div className="space-y-4">
-        {exercises.map((exercise, index) => (
+        {exercises.map((exercise: ExerciseState, index: number) => (
           <Card
             key={exercise.id}
             className={`card-glow transition-all duration-300 ${exercise.completed ? "ring-2 ring-green-500/50" : ""}`}
@@ -273,7 +277,7 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
                         onClick={() => {
                           // Discard changes by reverting to original values
                           setExercises(
-                            exercises.map((ex) =>
+                            exercises.map((ex: ExerciseState) =>
                               ex.id === exercise.id
                                 ? {
                                     ...ex,
@@ -283,8 +287,8 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
                                     adjustment: workout.exercises.find((orig) => orig.id === ex.id)?.adjustment || "",
                                     description: workout.exercises.find((orig) => orig.id === ex.id)?.description || "",
                                   }
-                                : ex,
-                            ),
+                                : ex
+                            )
                           )
                           setEditingExercise(null)
                         }}
