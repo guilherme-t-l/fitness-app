@@ -10,6 +10,10 @@ import { CheckCircle2, Circle, Edit2, X, Clock, ArrowLeft, Check } from "lucide-
 import type { SetStateAction } from "react"
 import { useTimer } from "@/hooks/useTimer"
 import { useAutoSave } from "@/hooks/useAutoSave"
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
+import { useRouter } from "next/navigation"
+import { databaseService } from "@/lib/database"
+import { useToast } from "@/hooks/use-toast"
 
 interface Exercise {
   id: string
@@ -71,6 +75,11 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   const [restTimers, setRestTimers] = useState<Record<string, number>>({})
   const [restActive, setRestActive] = useState<Record<string, boolean>>({})
   const restIntervals = useRef<Record<string, NodeJS.Timeout | null>>({})
+  const router = useRouter()
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [completing, setCompleting] = useState(false)
+  const navFallbackTimeout = useRef<NodeJS.Timeout | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -253,9 +262,41 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
     onSaveChanges(workout.id, updatedExercises)
   }
 
-  const handleCompleteWorkout = () => {
-    saveChangesToWorkout()
-    onComplete()
+  const handleCompleteWithConfirm = async () => {
+    setCompleting(true)
+    try {
+      saveChangesToWorkout()
+      // Prepare completion data
+      const exercisesData = exercises.map((ex) => ({
+        name: ex.actualName || ex.name,
+        sets: ex.sets,
+        reps: ex.actualReps || ex.reps,
+        weight: ex.actualWeight || ex.weight,
+        restTime: ex.restTime,
+        notes: ex.notes,
+        adjustment: ex.adjustment,
+        description: ex.description,
+      }))
+      const weights = exercisesData.map((ex) => ex.weight)
+      await databaseService.insertWorkoutCompletion({
+        workoutId: workout.id,
+        category: workout.category,
+        exercises: exercisesData,
+        weights,
+      })
+      setShowConfirm(false)
+      setCompleting(false)
+      toast({
+        title: "Workout complete",
+        description: "Progress and details are saved. Keep building your legacy.",
+        duration: 5000,
+        variant: "default",
+      })
+      onExit()
+    } catch (err) {
+      setCompleting(false)
+      // Optionally show error toast
+    }
   }
 
   const formatRestTime = (seconds: number) => {
@@ -292,13 +333,35 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
           <Badge className="bg-green-500/20 text-green-400 px-2 py-1 text-xs md:text-sm">
             {completedExercises}/{exercises.length} completed
           </Badge>
-          <Button
-            onClick={handleCompleteWorkout}
-            className="primary-glow text-white font-semibold px-3 py-1 text-xs md:text-base"
-            disabled={completedExercises === 0}
-          >
-            Complete
-          </Button>
+          <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+            <AlertDialogTrigger asChild>
+              <Button
+                onClick={() => setShowConfirm(true)}
+                className="primary-glow text-white font-semibold px-3 py-1 text-xs md:text-base"
+                disabled={completedExercises === 0 || completing}
+              >
+                Complete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-gradient-to-br from-[#101c2c] via-[#181c2f] to-[#1a133a] border border-gray-800 rounded-3xl shadow-2xl p-8 max-w-sm mx-auto flex flex-col gap-8 items-center">
+              <AlertDialogHeader className="w-full flex flex-col items-center">
+                <AlertDialogTitle className="text-white text-2xl md:text-3xl font-extrabold mb-3 tracking-tight text-center">Complete Workout?</AlertDialogTitle>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 text-2xl md:text-3xl font-extrabold leading-tight mb-2 text-center">Keep building your legacy.</span>
+                <span className="text-gray-300 text-base md:text-lg text-center">Your progress and all exercise details will be saved.</span>
+              </AlertDialogHeader>
+              <div className="border-t border-gray-800 w-full" />
+              <AlertDialogFooter className="w-full flex flex-row gap-4 justify-center mt-2">
+                <AlertDialogCancel className="text-gray-400 border-gray-700 px-6 py-2 rounded-lg font-medium bg-gray-900/70 hover:bg-gray-800 transition">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white font-bold px-8 py-2 rounded-lg shadow-lg focus:ring-2 focus:ring-cyan-400 focus:outline-none transition-all primary-glow"
+                  onClick={handleCompleteWithConfirm}
+                  disabled={completing}
+                >
+                  {completing ? "Saving..." : "Yes, Complete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
