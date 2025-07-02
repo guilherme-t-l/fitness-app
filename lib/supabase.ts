@@ -3,10 +3,13 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Create a mock client if environment variables are not set
-export const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Supabase environment variables are missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.'
+  )
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Database types for TypeScript
 export interface Database {
