@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { CheckCircle2, Circle, Edit2, X, Clock, ArrowLeft, Check } from "lucide-react"
 import type { SetStateAction } from "react"
-import { useTimer } from "@/hooks/useTimer"
+import { useTimer, useRestTimer } from "@/hooks/useTimer"
 import { useAutoSave } from "@/hooks/useAutoSave"
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { useRouter } from "next/navigation"
@@ -72,14 +72,14 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   const [editingExercise, setEditingExercise] = useState<string | null>(null)
   const [savedChanges, setSavedChanges] = useState<Set<string>>(new Set())
   const [saveTimeouts, setSaveTimeouts] = useState<Map<string, NodeJS.Timeout>>(new Map())
-  const [restTimers, setRestTimers] = useState<Record<string, number>>({})
-  const [restActive, setRestActive] = useState<Record<string, boolean>>({})
-  const restIntervals = useRef<Record<string, NodeJS.Timeout | null>>({})
   const router = useRouter()
   const [showConfirm, setShowConfirm] = useState(false)
   const [completing, setCompleting] = useState(false)
   const navFallbackTimeout = useRef<NodeJS.Timeout | null>(null)
   const { toast } = useToast()
+
+  // Use the new rest timer hook
+  const { restTimers, restActive, handleRestTimer, formatRestTime, parseRestTime } = useRestTimer()
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -95,86 +95,13 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
     }
   }, [saveTimeouts])
 
-  const parseRestTime = (restTime?: string) => {
-    if (!restTime) return 60
-    const match = restTime.match(/(\d+)/)
-    return match ? parseInt(match[1], 10) : 60
-  }
-
-  // Play sound and vibrate when timer hits 0
-  const notifyRestEnd = () => {
-    // Play a short beep using Web Audio API
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-      const o = ctx.createOscillator()
-      const g = ctx.createGain()
-      o.type = 'sine'; o.frequency.value = 880
-      g.gain.value = 0.2
-      o.connect(g); g.connect(ctx.destination)
-      o.start()
-      setTimeout(() => { o.stop(); ctx.close() }, 200)
-    } catch {}
-    // Vibrate if supported
-    if (navigator.vibrate) navigator.vibrate(200)
-  }
-
   // Keep timer in sync with restTime changes
   useEffect(() => {
     exercises.forEach((ex: ExerciseState) => {
       const parsed = parseRestTime(ex.restTime)
-      setRestTimers((prev: Record<string, number>) => {
-        if (prev[ex.id] === undefined || prev[ex.id] > parsed) {
-          return { ...prev, [ex.id]: parsed }
-        }
-        return prev
-      })
+      // This will be handled by the useRestTimer hook
     })
-  }, [exercises])
-
-  // Countdown logic
-  useEffect(() => {
-    exercises.forEach((ex: ExerciseState) => {
-      if (restActive[ex.id] && !restIntervals.current[ex.id]) {
-        restIntervals.current[ex.id] = setInterval(() => {
-          setRestTimers((prev: Record<string, number>) => {
-            const next = (prev[ex.id] ?? parseRestTime(ex.restTime)) - 1
-            if (next === 0) notifyRestEnd()
-            return { ...prev, [ex.id]: Math.max(0, next) }
-          })
-        }, 1000)
-      } else if (!restActive[ex.id] && restIntervals.current[ex.id]) {
-        clearInterval(restIntervals.current[ex.id] as NodeJS.Timeout)
-        restIntervals.current[ex.id] = null
-      }
-    })
-    return () => {
-      Object.values(restIntervals.current).forEach((interval) => interval && clearInterval(interval as NodeJS.Timeout))
-    }
-  }, [exercises, restActive])
-
-  const handleRestButton = (id: string, restTime?: string) => {
-    if (restActive[id]) {
-      // Reset timer
-      setRestTimers((prev) => ({ ...prev, [id]: parseRestTime(restTime) }))
-    } else {
-      // Start timer
-      setRestTimers((prev) => ({ ...prev, [id]: parseRestTime(restTime) }))
-      setRestActive((prev) => ({ ...prev, [id]: true }))
-    }
-  }
-
-  // If restTime changes, reset timer to new value
-  useEffect(() => {
-    exercises.forEach((ex: ExerciseState) => {
-      setRestTimers((prev: Record<string, number>) => {
-        const parsed = parseRestTime(ex.restTime)
-        if (prev[ex.id] !== undefined && prev[ex.id] > parsed) {
-          return { ...prev, [ex.id]: parsed }
-        }
-        return prev
-      })
-    })
-  }, [exercises.map((ex: ExerciseState) => ex.restTime).join(",")])
+  }, [exercises, parseRestTime])
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000)
@@ -292,12 +219,6 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
       setCompleting(false)
       // Optionally show error toast
     }
-  }
-
-  const formatRestTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${m}:${s.toString().padStart(2, "0")}`
   }
 
   return (
@@ -576,14 +497,7 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
                     size="sm"
                     variant="outline"
                     className="px-2 py-1 text-xs border-green-700/30 text-green-400 hover:bg-green-900/20"
-                    onClick={() => {
-                      if (restActive[exercise.id]) {
-                        setRestTimers((prev: Record<string, number>) => ({ ...prev, [exercise.id]: parseRestTime(exercise.restTime) }))
-                      } else {
-                        setRestTimers((prev: Record<string, number>) => ({ ...prev, [exercise.id]: parseRestTime(exercise.restTime) }))
-                        setRestActive((prev: Record<string, boolean>) => ({ ...prev, [exercise.id]: true }))
-                      }
-                    }}
+                    onClick={() => handleRestTimer(exercise.id, exercise.restTime)}
                     type="button"
                   >
                     {restActive[exercise.id] ? 'Reset' : 'Start'}
