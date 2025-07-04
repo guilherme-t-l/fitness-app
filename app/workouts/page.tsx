@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -9,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Search, Play, Edit, Trash2, Clock, Dumbbell, Plus, Calendar, Loader2 } from "lucide-react"
 import { CreateWorkoutForm } from "@/components/create-workout-form"
 import { EditWorkoutForm } from "@/components/edit-workout-form"
-import { WorkoutSession } from "@/components/workout-session"
 import { useWorkouts } from "@/hooks/useWorkouts"
 import { type FrontendWorkout, type FrontendExercise } from "@/lib/database"
 
@@ -25,6 +25,7 @@ type Workout = FrontendWorkout
 // - Consider splitting business logic from UI rendering for future scalability.
 
 export default function WorkoutsPage() {
+  const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
   const { 
     workouts, 
@@ -32,15 +33,11 @@ export default function WorkoutsPage() {
     error, 
     createWorkout, 
     updateWorkout, 
-    deleteWorkout, 
-    completeWorkout, 
-    updateWorkoutExercises 
+    deleteWorkout
   } = useWorkouts()
-  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
-  const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null)
 
   const filteredWorkouts = workouts.filter(
     (workout) =>
@@ -89,18 +86,7 @@ export default function WorkoutsPage() {
   }
 
   const handleStartWorkout = (workout: Workout) => {
-    setActiveWorkout(workout)
-  }
-
-  const handleCompleteWorkout = async () => {
-    if (activeWorkout) {
-      try {
-        await completeWorkout(activeWorkout.id)
-        setActiveWorkout(null)
-      } catch (error) {
-        console.error('Failed to complete workout:', error)
-      }
-    }
+    router.push(`/workouts/${workout.id}`)
   }
 
   const handleDeleteWorkout = async (workoutId: string) => {
@@ -109,25 +95,6 @@ export default function WorkoutsPage() {
     } catch (error) {
       console.error('Failed to delete workout:', error)
     }
-  }
-
-  const handleSaveWorkoutChanges = async (workoutId: string, updatedExercises: Exercise[]) => {
-    try {
-      await updateWorkoutExercises(workoutId, updatedExercises)
-    } catch (error) {
-      console.error('Failed to save workout changes:', error)
-    }
-  }
-
-  if (activeWorkout) {
-    return (
-      <WorkoutSession
-        workout={activeWorkout}
-        onComplete={handleCompleteWorkout}
-        onExit={() => setActiveWorkout(null)}
-        onSaveChanges={handleSaveWorkoutChanges}
-      />
-    )
   }
 
   // Show loading state

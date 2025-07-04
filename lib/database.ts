@@ -291,15 +291,37 @@ export const databaseService = {
   // Update workout completion
   async updateWorkoutCompletion(id: string): Promise<void> {
     try {
-      const { error } = await supabase
+      // Fetch current completions
+      const { data: workout, error: fetchError } = await supabase
+        .from('workouts')
+        .select('completions')
+        .eq('id', id)
+        .single()
+      if (fetchError) {
+        console.error('Supabase fetch error:', fetchError)
+        throw fetchError
+      }
+      if (!workout) {
+        console.error('No workout found for id:', id)
+        throw new Error('No workout found for id: ' + id)
+      }
+      const newCompletions = (workout.completions || 0) + 1
+      const { error: updateError, data } = await supabase
         .from('workouts')
         .update({
-          completions: supabase.rpc('increment', { row_id: id, x: 1 }),
+          completions: newCompletions,
           last_completed: new Date().toISOString()
         })
         .eq('id', id)
-
-      if (error) throw error
+        .select()
+      if (updateError) {
+        console.error('Supabase update error:', updateError)
+        throw updateError
+      }
+      if (!data || data.length === 0) {
+        console.error('No data returned from updateWorkoutCompletion', { id })
+        throw new Error('No data returned from updateWorkoutCompletion')
+      }
     } catch (error) {
       console.error('Error updating workout completion:', error)
       throw error

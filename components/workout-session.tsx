@@ -8,8 +8,12 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { CheckCircle2, Circle, Edit2, X, Clock, ArrowLeft, Check } from "lucide-react"
 import type { SetStateAction } from "react"
-import { useTimer } from "@/hooks/useTimer"
+import { useTimer, useRestTimer } from "@/hooks/useTimer"
 import { useAutoSave } from "@/hooks/useAutoSave"
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
+import { useRouter } from "next/navigation"
+import { databaseService } from "@/lib/database"
+import { useToast } from "@/hooks/use-toast"
 
 interface Exercise {
   id: string
@@ -68,9 +72,14 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   const [editingExercise, setEditingExercise] = useState<string | null>(null)
   const [savedChanges, setSavedChanges] = useState<Set<string>>(new Set())
   const [saveTimeouts, setSaveTimeouts] = useState<Map<string, NodeJS.Timeout>>(new Map())
-  const [restTimers, setRestTimers] = useState<Record<string, number>>({})
-  const [restActive, setRestActive] = useState<Record<string, boolean>>({})
-  const restIntervals = useRef<Record<string, NodeJS.Timeout | null>>({})
+  const router = useRouter()
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [completing, setCompleting] = useState(false)
+  const navFallbackTimeout = useRef<NodeJS.Timeout | null>(null)
+  const { toast } = useToast()
+
+  // Use the new rest timer hook
+  const { restTimers, restActive, handleRestTimer, formatRestTime, parseRestTime } = useRestTimer()
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -86,86 +95,13 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
     }
   }, [saveTimeouts])
 
-  const parseRestTime = (restTime?: string) => {
-    if (!restTime) return 60
-    const match = restTime.match(/(\d+)/)
-    return match ? parseInt(match[1], 10) : 60
-  }
-
-  // Play sound and vibrate when timer hits 0
-  const notifyRestEnd = () => {
-    // Play a short beep using Web Audio API
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-      const o = ctx.createOscillator()
-      const g = ctx.createGain()
-      o.type = 'sine'; o.frequency.value = 880
-      g.gain.value = 0.2
-      o.connect(g); g.connect(ctx.destination)
-      o.start()
-      setTimeout(() => { o.stop(); ctx.close() }, 200)
-    } catch {}
-    // Vibrate if supported
-    if (navigator.vibrate) navigator.vibrate(200)
-  }
-
   // Keep timer in sync with restTime changes
   useEffect(() => {
     exercises.forEach((ex: ExerciseState) => {
       const parsed = parseRestTime(ex.restTime)
-      setRestTimers((prev: Record<string, number>) => {
-        if (prev[ex.id] === undefined || prev[ex.id] > parsed) {
-          return { ...prev, [ex.id]: parsed }
-        }
-        return prev
-      })
+      // This will be handled by the useRestTimer hook
     })
-  }, [exercises])
-
-  // Countdown logic
-  useEffect(() => {
-    exercises.forEach((ex: ExerciseState) => {
-      if (restActive[ex.id] && !restIntervals.current[ex.id]) {
-        restIntervals.current[ex.id] = setInterval(() => {
-          setRestTimers((prev: Record<string, number>) => {
-            const next = (prev[ex.id] ?? parseRestTime(ex.restTime)) - 1
-            if (next === 0) notifyRestEnd()
-            return { ...prev, [ex.id]: Math.max(0, next) }
-          })
-        }, 1000)
-      } else if (!restActive[ex.id] && restIntervals.current[ex.id]) {
-        clearInterval(restIntervals.current[ex.id] as NodeJS.Timeout)
-        restIntervals.current[ex.id] = null
-      }
-    })
-    return () => {
-      Object.values(restIntervals.current).forEach((interval) => interval && clearInterval(interval as NodeJS.Timeout))
-    }
-  }, [exercises, restActive])
-
-  const handleRestButton = (id: string, restTime?: string) => {
-    if (restActive[id]) {
-      // Reset timer
-      setRestTimers((prev) => ({ ...prev, [id]: parseRestTime(restTime) }))
-    } else {
-      // Start timer
-      setRestTimers((prev) => ({ ...prev, [id]: parseRestTime(restTime) }))
-      setRestActive((prev) => ({ ...prev, [id]: true }))
-    }
-  }
-
-  // If restTime changes, reset timer to new value
-  useEffect(() => {
-    exercises.forEach((ex: ExerciseState) => {
-      setRestTimers((prev: Record<string, number>) => {
-        const parsed = parseRestTime(ex.restTime)
-        if (prev[ex.id] !== undefined && prev[ex.id] > parsed) {
-          return { ...prev, [ex.id]: parsed }
-        }
-        return prev
-      })
-    })
-  }, [exercises.map((ex: ExerciseState) => ex.restTime).join(",")])
+  }, [exercises, parseRestTime])
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000)
@@ -253,15 +189,36 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
     onSaveChanges(workout.id, updatedExercises)
   }
 
-  const handleCompleteWorkout = () => {
-    saveChangesToWorkout()
-    onComplete()
-  }
-
-  const formatRestTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${m}:${s.toString().padStart(2, "0")}`
+  const handleCompleteWithConfirm = async () => {
+    setCompleting(true)
+    try {
+      saveChangesToWorkout()
+      // Prepare completion data
+      const exercisesData = exercises.map((ex) => ({
+        name: ex.actualName || ex.name,
+        sets: ex.sets,
+        reps: ex.actualReps || ex.reps,
+        weight: ex.actualWeight || ex.weight,
+        restTime: ex.restTime,
+        notes: ex.notes,
+        adjustment: ex.adjustment,
+        description: ex.description,
+      }))
+      // Update workout completion count
+      await databaseService.updateWorkoutCompletion(workout.id)
+      setShowConfirm(false)
+      setCompleting(false)
+      toast({
+        title: "Workout complete",
+        description: "Progress and details are saved. Keep building your legacy.",
+        duration: 5000,
+        variant: "default",
+      })
+      onExit()
+    } catch (err) {
+      setCompleting(false)
+      // Optionally show error toast
+    }
   }
 
   return (
@@ -292,13 +249,35 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
           <Badge className="bg-green-500/20 text-green-400 px-2 py-1 text-xs md:text-sm">
             {completedExercises}/{exercises.length} completed
           </Badge>
-          <Button
-            onClick={handleCompleteWorkout}
-            className="primary-glow text-white font-semibold px-3 py-1 text-xs md:text-base"
-            disabled={completedExercises === 0}
-          >
-            Complete
-          </Button>
+          <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+            <AlertDialogTrigger asChild>
+              <Button
+                onClick={() => setShowConfirm(true)}
+                className="primary-glow text-white font-semibold px-3 py-1 text-xs md:text-base"
+                disabled={completedExercises === 0 || completing}
+              >
+                Complete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-gradient-to-br from-[#101c2c] via-[#181c2f] to-[#1a133a] border border-gray-800 rounded-3xl shadow-2xl p-8 max-w-sm mx-auto flex flex-col gap-8 items-center">
+              <AlertDialogHeader className="w-full flex flex-col items-center">
+                <AlertDialogTitle className="text-white text-2xl md:text-3xl font-extrabold mb-3 tracking-tight text-center">Complete Workout?</AlertDialogTitle>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 text-2xl md:text-3xl font-extrabold leading-tight mb-2 text-center">Keep building your legacy.</span>
+                <span className="text-gray-300 text-base md:text-lg text-center">Your progress and all exercise details will be saved.</span>
+              </AlertDialogHeader>
+              <div className="border-t border-gray-800 w-full" />
+              <AlertDialogFooter className="w-full flex flex-row gap-4 justify-center mt-2">
+                <AlertDialogCancel className="text-gray-400 border-gray-700 px-6 py-2 rounded-lg font-medium bg-gray-900/70 hover:bg-gray-800 transition">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white font-bold px-8 py-2 rounded-lg shadow-lg focus:ring-2 focus:ring-cyan-400 focus:outline-none transition-all primary-glow"
+                  onClick={handleCompleteWithConfirm}
+                  disabled={completing}
+                >
+                  {completing ? "Saving..." : "Yes, Complete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -515,17 +494,10 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
                     {formatRestTime(restTimers[exercise.id] ?? parseRestTime(exercise.restTime))}
                   </span>
                   <Button
-                    size="xs"
+                    size="sm"
                     variant="outline"
                     className="px-2 py-1 text-xs border-green-700/30 text-green-400 hover:bg-green-900/20"
-                    onClick={() => {
-                      if (restActive[exercise.id]) {
-                        setRestTimers((prev: Record<string, number>) => ({ ...prev, [exercise.id]: parseRestTime(exercise.restTime) }))
-                      } else {
-                        setRestTimers((prev: Record<string, number>) => ({ ...prev, [exercise.id]: parseRestTime(exercise.restTime) }))
-                        setRestActive((prev: Record<string, boolean>) => ({ ...prev, [exercise.id]: true }))
-                      }
-                    }}
+                    onClick={() => handleRestTimer(exercise.id, exercise.restTime)}
                     type="button"
                   >
                     {restActive[exercise.id] ? 'Reset' : 'Start'}
