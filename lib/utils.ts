@@ -27,7 +27,7 @@ export function calculateWorkoutDuration(exercises: { sets: number; restTime?: s
     const sets = ex.sets || 1;
     const rest = parseRestTime(ex.restTime);
     // Each set: 40s execution + rest (except after last set)
-    totalSeconds += sets * 40 + (sets - 1) * rest;
+    totalSeconds += sets * 40 + sets * rest;
   }
   return Math.round(totalSeconds / 60);
 }
