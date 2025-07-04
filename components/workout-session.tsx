@@ -277,13 +277,8 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
         adjustment: ex.adjustment,
         description: ex.description,
       }))
-      const weights = exercisesData.map((ex) => ex.weight)
-      await databaseService.insertWorkoutCompletion({
-        workoutId: workout.id,
-        category: workout.category,
-        exercises: exercisesData,
-        weights,
-      })
+      // Update workout completion count
+      await databaseService.updateWorkoutCompletion(workout.id)
       setShowConfirm(false)
       setCompleting(false)
       toast({
@@ -578,7 +573,7 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
                     {formatRestTime(restTimers[exercise.id] ?? parseRestTime(exercise.restTime))}
                   </span>
                   <Button
-                    size="xs"
+                    size="sm"
                     variant="outline"
                     className="px-2 py-1 text-xs border-green-700/30 text-green-400 hover:bg-green-900/20"
                     onClick={() => {
