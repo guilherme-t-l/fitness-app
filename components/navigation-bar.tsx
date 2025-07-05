@@ -16,7 +16,7 @@ function NavigationBar() {
       {/* Center: Navigation Links (hidden on mobile) */}
       <div className="hidden md:flex items-center gap-6">
         <Link href="/workouts" className="text-white font-medium hover:text-green-400 transition">Workouts</Link>
-        <span className="text-gray-500 font-medium cursor-not-allowed opacity-60 select-none">Progress</span>
+        <Link href="/progress" className="text-white font-medium hover:text-green-400 transition">Progress</Link>
         <span className="text-gray-500 font-medium cursor-not-allowed opacity-60 select-none">Community</span>
       </div>
       {/* Right: Hamburger menu on mobile, Login/Profile on desktop */}
@@ -32,7 +32,7 @@ function NavigationBar() {
             <DrawerContent>
               <div className="flex flex-col gap-4 p-6">
                 <Link href="/workouts" className="text-white text-lg font-semibold py-2 px-2 rounded hover:bg-gray-800/60">Workouts</Link>
-                <span className="text-gray-500 text-lg font-semibold py-2 px-2 rounded cursor-not-allowed opacity-60 select-none">Progress</span>
+                <Link href="/progress" className="text-white text-lg font-semibold py-2 px-2 rounded hover:bg-gray-800/60">Progress</Link>
                 <span className="text-gray-500 text-lg font-semibold py-2 px-2 rounded cursor-not-allowed opacity-60 select-none">Community</span>
                 <span className="text-gray-500 text-lg font-semibold py-2 px-2 rounded cursor-not-allowed opacity-60 select-none">Login/Profile</span>
               </div>

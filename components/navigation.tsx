@@ -10,7 +10,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/workouts", label: "Workouts", icon: Dumbbell },
   { href: "/create", label: "Create", icon: Plus },
-  { href: "/progress", label: "Progress", icon: BarChart3 },
+  { href: "https://v0-fitness-flame.vercel.app/progress", label: "Progress", icon: BarChart3, external: true },
   { href: "/profile", label: "Profile", icon: User },
 ]
 
@@ -32,7 +32,12 @@ export function Navigation() {
               const isActive = pathname === item.href
 
               return (
-                <Link key={item.href} href={item.href}>
+                <Link 
+                  key={item.href} 
+                  href={item.href}
+                  target={item.external ? "_blank" : undefined}
+                  rel={item.external ? "noopener noreferrer" : undefined}
+                >
                   <Button
                     variant="ghost"
                     size="sm"
