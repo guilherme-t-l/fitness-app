@@ -26,8 +26,8 @@ export interface FrontendWorkout {
   description: string
   exercises: FrontendExercise[]
   estimatedDuration: string
-  difficulty: "Beginner" | "Intermediate" | "Advanced"
-  category: string
+  workoutType: "Strength" | "Hypertrophy" | "Endurance" | "Cardio" | "Mobility" | "Skill" | "Recovery"
+  categories: string[]
   createdAt: string
   lastCompleted?: string
   completions: number
@@ -89,8 +89,8 @@ const convertWorkoutToFrontend = (workout: Workout, exercises: Exercise[]): Fron
     name: workout.name,
     description: workout.description,
     estimatedDuration: workout.estimated_duration,
-    difficulty: workout.difficulty,
-    category: workout.category,
+    workoutType: workout.workout_type,
+    categories: (workout as any).categories || [],
     createdAt: workout.created_at,
     lastCompleted: workout.last_completed || undefined,
     completions: workout.completions,
@@ -113,15 +113,15 @@ const convertWorkoutToDatabase = (workout: Omit<FrontendWorkout, 'id' | 'created
   workout: WorkoutInsert
   exercises: ExerciseInsert[]
 } => {
-  const workoutData: WorkoutInsert = {
+  const workoutData = {
     name: workout.name,
     description: workout.description,
     estimated_duration: workout.estimatedDuration,
-    difficulty: workout.difficulty,
-    category: workout.category,
+    workout_type: workout.workoutType,
+    categories: workout.categories,
     last_completed: workout.lastCompleted,
     completions: 0,
-  }
+  } as unknown as WorkoutInsert
 
   const exercisesData: ExerciseInsert[] = workout.exercises.map((exercise, index) => ({
     workout_id: '', // Will be set after workout creation
@@ -251,8 +251,8 @@ export const databaseService = {
       if (workoutData.name) workoutUpdate.name = workoutData.name
       if (workoutData.description) workoutUpdate.description = workoutData.description
       if (workoutData.estimatedDuration) workoutUpdate.estimated_duration = workoutData.estimatedDuration
-      if (workoutData.difficulty) workoutUpdate.difficulty = workoutData.difficulty
-      if (workoutData.category) workoutUpdate.category = workoutData.category
+      if (workoutData.workoutType) workoutUpdate.workout_type = workoutData.workoutType
+      if (workoutData.categories) (workoutUpdate as any).categories = workoutData.categories
       if (workoutData.lastCompleted) workoutUpdate.last_completed = workoutData.lastCompleted
 
       const { error: workoutError } = await supabase

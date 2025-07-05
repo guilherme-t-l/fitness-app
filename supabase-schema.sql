@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS workouts (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     estimated_duration VARCHAR(50),
-    difficulty VARCHAR(20) CHECK (difficulty IN ('Beginner', 'Intermediate', 'Advanced')),
-    category VARCHAR(100),
+    workout_type VARCHAR(20) CHECK (workout_type IN ('Strength', 'Hypertrophy', 'Endurance', 'Cardio', 'Mobility', 'Skill', 'Recovery')),
+    categories JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     last_completed TIMESTAMP WITH TIME ZONE,
     completions INTEGER DEFAULT 0,
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS exercise_performance (
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_workouts_user_id ON workouts(user_id);
 CREATE INDEX IF NOT EXISTS idx_workouts_created_at ON workouts(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_workouts_category ON workouts(category);
+CREATE INDEX IF NOT EXISTS idx_workouts_categories ON workouts USING GIN(categories);
 CREATE INDEX IF NOT EXISTS idx_exercises_workout_id ON exercises(workout_id);
 CREATE INDEX IF NOT EXISTS idx_exercises_order_index ON exercises(workout_id, order_index);
 CREATE INDEX IF NOT EXISTS idx_workout_history_workout_id ON workout_history(workout_id);
@@ -142,12 +142,13 @@ RETURNS TABLE (
 BEGIN
     RETURN QUERY
     SELECT 
-        w.category,
+        category_value::VARCHAR(100) as category,
         COUNT(DISTINCT w.id) as workout_count,
         COALESCE(SUM(w.completions), 0) as completion_count
-    FROM workouts w
-    WHERE w.category IS NOT NULL
-    GROUP BY w.category
+    FROM workouts w,
+         jsonb_array_elements_text(w.categories) as category_value
+    WHERE w.categories IS NOT NULL AND jsonb_array_length(w.categories) > 0
+    GROUP BY category_value
     ORDER BY completion_count DESC;
 END;
 $$ LANGUAGE plpgsql;
@@ -179,10 +180,10 @@ CREATE POLICY "Allow all operations on exercise_performance" ON exercise_perform
     FOR ALL USING (true);
 
 -- Insert sample data (optional - you can remove this if you want to start fresh)
-INSERT INTO workouts (id, name, description, estimated_duration, difficulty, category, created_at, last_completed, completions) VALUES
-    ('550e8400-e29b-41d4-a716-446655440001', 'Upper Body Strength', 'Focus on building upper body muscle and strength', '45 min', 'Intermediate', 'Strength', '2024-01-10T00:00:00Z', '2024-01-15T00:00:00Z', 8),
-    ('550e8400-e29b-41d4-a716-446655440002', 'Full Body HIIT', 'High-intensity interval training for full body conditioning', '25 min', 'Advanced', 'Cardio', '2024-01-12T00:00:00Z', NULL, 5),
-    ('550e8400-e29b-41d4-a716-446655440003', 'Lower Body Focus', 'Comprehensive lower body strength and power workout', '50 min', 'Intermediate', 'Strength', '2024-01-08T00:00:00Z', '2024-01-14T00:00:00Z', 12)
+INSERT INTO workouts (id, name, description, estimated_duration, workout_type, categories, created_at, last_completed, completions) VALUES
+    ('550e8400-e29b-41d4-a716-446655440001', 'Upper Body Strength', 'Focus on building upper body muscle and strength', '45 min', 'Strength', '["Strength", "Upper Body", "Push"]', '2024-01-10T00:00:00Z', '2024-01-15T00:00:00Z', 8),
+    ('550e8400-e29b-41d4-a716-446655440002', 'Full Body HIIT', 'High-intensity interval training for full body conditioning', '25 min', 'Cardio', '["Cardio", "HIIT", "Full Body"]', '2024-01-12T00:00:00Z', NULL, 5),
+    ('550e8400-e29b-41d4-a716-446655440003', 'Lower Body Focus', 'Comprehensive lower body strength and power workout', '50 min', 'Strength', '["Strength", "Lower Body", "Legs"]', '2024-01-08T00:00:00Z', '2024-01-14T00:00:00Z', 12)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO exercises (workout_id, name, sets, reps, weight, rest_time, order_index) VALUES

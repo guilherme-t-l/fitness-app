@@ -21,7 +21,7 @@ export interface Database {
           name: string
           description: string
           estimated_duration: string
-          difficulty: 'Beginner' | 'Intermediate' | 'Advanced'
+          workout_type: 'Strength' | 'Hypertrophy' | 'Endurance' | 'Cardio' | 'Mobility' | 'Skill' | 'Recovery'
           category: string
           created_at: string
           last_completed?: string
@@ -33,7 +33,7 @@ export interface Database {
           name: string
           description: string
           estimated_duration: string
-          difficulty: 'Beginner' | 'Intermediate' | 'Advanced'
+          workout_type: 'Strength' | 'Hypertrophy' | 'Endurance' | 'Cardio' | 'Mobility' | 'Skill' | 'Recovery'
           category: string
           created_at?: string
           last_completed?: string
@@ -45,7 +45,7 @@ export interface Database {
           name?: string
           description?: string
           estimated_duration?: string
-          difficulty?: 'Beginner' | 'Intermediate' | 'Advanced'
+          workout_type?: 'Strength' | 'Hypertrophy' | 'Endurance' | 'Cardio' | 'Mobility' | 'Skill' | 'Recovery'
           category?: string
           created_at?: string
           last_completed?: string

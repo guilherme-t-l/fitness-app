@@ -43,17 +43,25 @@ export default function WorkoutsPage() {
     (workout) =>
       workout.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       workout.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      workout.category.toLowerCase().includes(searchTerm.toLowerCase()),
+      workout.categories.some(cat => cat.toLowerCase().includes(searchTerm.toLowerCase())),
   )
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "Beginner":
-        return "bg-green-500/20 text-green-400 border-green-500/30"
-      case "Intermediate":
-        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-      case "Advanced":
+  const getWorkoutTypeColor = (workoutType: string) => {
+    switch (workoutType) {
+      case "Strength":
         return "bg-red-500/20 text-red-400 border-red-500/30"
+      case "Hypertrophy":
+        return "bg-purple-500/20 text-purple-400 border-purple-500/30"
+      case "Endurance":
+        return "bg-blue-500/20 text-blue-400 border-blue-500/30"
+      case "Cardio":
+        return "bg-green-500/20 text-green-400 border-green-500/30"
+      case "Mobility":
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+      case "Skill":
+        return "bg-orange-500/20 text-orange-400 border-orange-500/30"
+      case "Recovery":
+        return "bg-gray-500/20 text-gray-400 border-gray-500/30"
       default:
         return "bg-gray-500/20 text-gray-400 border-gray-500/30"
     }
@@ -178,9 +186,9 @@ export default function WorkoutsPage() {
                 <div className="space-y-2">
                   <CardTitle className="text-white text-xl font-bold">{workout.name}</CardTitle>
                   <div className="flex items-center space-x-2">
-                    <Badge className={getDifficultyColor(workout.difficulty)} variant="default">{workout.difficulty}</Badge>
-                    {workout.category && (
-                      <Badge variant="outline" className="border-green-400/50 text-green-400">{workout.category}</Badge>
+                    <Badge className={getWorkoutTypeColor(workout.workoutType)} variant="default">{workout.workoutType}</Badge>
+                    {workout.categories.length > 0 && (
+                      <Badge variant="outline" className="border-green-400/50 text-green-400">{workout.categories[0]}</Badge>
                     )}
                   </div>
                 </div>
