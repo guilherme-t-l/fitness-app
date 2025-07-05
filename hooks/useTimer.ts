@@ -33,6 +33,7 @@ export function useRestTimer() {
   const [restTimers, setRestTimers] = useState<Record<string, number>>({})
   const [restActive, setRestActive] = useState<Record<string, boolean>>({})
   const [restStartTimes, setRestStartTimes] = useState<Record<string, number>>({})
+  const [totalRestTimes, setTotalRestTimes] = useState<Record<string, number>>({})
   const updateInterval = useRef<NodeJS.Timeout | null>(null)
 
   // Parse rest time string to seconds
@@ -43,9 +44,11 @@ export function useRestTimer() {
   }
 
   // Calculate remaining time based on actual elapsed time
-  const calculateRemainingTime = (exerciseId: string, totalRestTime: number): number => {
+  const calculateRemainingTime = (exerciseId: string): number => {
     const startTime = restStartTimes[exerciseId]
-    if (!startTime) return totalRestTime
+    const totalRestTime = totalRestTimes[exerciseId]
+    
+    if (!startTime || !totalRestTime) return totalRestTime || 60
     
     const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000)
     const remaining = Math.max(0, totalRestTime - elapsedSeconds)
@@ -76,13 +79,14 @@ export function useRestTimer() {
     const updateTimers = () => {
       setRestTimers((prev) => {
         const newTimers = { ...prev }
+        let hasActiveTimers = false
+        
         Object.keys(restActive).forEach((exerciseId) => {
           if (restActive[exerciseId]) {
-            // Use the stored timer value as the total rest time
-            const totalRestTime = restTimers[exerciseId] || 60
-            const remaining = calculateRemainingTime(exerciseId, totalRestTime)
+            hasActiveTimers = true
+            const remaining = calculateRemainingTime(exerciseId)
             
-            if (remaining === 0 && restActive[exerciseId]) {
+            if (remaining === 0) {
               notifyRestEnd()
               setRestActive((prev) => ({ ...prev, [exerciseId]: false }))
             }
@@ -90,6 +94,13 @@ export function useRestTimer() {
             newTimers[exerciseId] = remaining
           }
         })
+        
+        // Only continue interval if there are active timers
+        if (!hasActiveTimers && updateInterval.current) {
+          clearInterval(updateInterval.current)
+          updateInterval.current = null
+        }
+        
         return newTimers
       })
     }
@@ -97,15 +108,20 @@ export function useRestTimer() {
     // Update immediately
     updateTimers()
 
-    // Set up interval for UI updates
-    updateInterval.current = setInterval(updateTimers, 100)
+    // Set up interval for UI updates only if there are active timers
+    if (Object.values(restActive).some(active => active)) {
+      if (!updateInterval.current) {
+        updateInterval.current = setInterval(updateTimers, 100)
+      }
+    }
     
     return () => {
       if (updateInterval.current) {
         clearInterval(updateInterval.current)
+        updateInterval.current = null
       }
     }
-  }, [restActive, restStartTimes, restTimers])
+  }, [restActive, restStartTimes, totalRestTimes])
 
   // Handle page visibility changes
   useEffect(() => {
@@ -116,9 +132,7 @@ export function useRestTimer() {
           const newTimers = { ...prev }
           Object.keys(restActive).forEach((exerciseId) => {
             if (restActive[exerciseId]) {
-              // Use the stored timer value as the total rest time
-              const totalRestTime = restTimers[exerciseId] || 60
-              newTimers[exerciseId] = calculateRemainingTime(exerciseId, totalRestTime)
+              newTimers[exerciseId] = calculateRemainingTime(exerciseId)
             }
           })
           return newTimers
@@ -128,7 +142,7 @@ export function useRestTimer() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [restActive, restStartTimes, restTimers])
+  }, [restActive, restStartTimes, totalRestTimes])
 
   // Start or reset rest timer
   const handleRestTimer = (exerciseId: string, restTime?: string) => {
@@ -143,11 +157,17 @@ export function useRestTimer() {
         delete newTimes[exerciseId]
         return newTimes
       })
+      setTotalRestTimes((prev) => {
+        const newTimes = { ...prev }
+        delete newTimes[exerciseId]
+        return newTimes
+      })
     } else {
       // Start timer with current timestamp
       setRestTimers((prev) => ({ ...prev, [exerciseId]: totalRestTime }))
       setRestActive((prev) => ({ ...prev, [exerciseId]: true }))
       setRestStartTimes((prev) => ({ ...prev, [exerciseId]: Date.now() }))
+      setTotalRestTimes((prev) => ({ ...prev, [exerciseId]: totalRestTime }))
     }
   }
 
