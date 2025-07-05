@@ -224,7 +224,7 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   return (
     <div className="space-y-6">
       {/* Header - Responsive Redesign */}
-      <div className="sticky top-0 z-30 bg-gray-950/90 border-b border-gray-800 shadow-sm backdrop-blur px-2 py-2 md:static md:bg-transparent md:border-none md:shadow-none md:backdrop-blur-none">
+      <div className="sticky top-0 z-50 bg-gray-950/90 border-b border-gray-800 shadow-sm backdrop-blur px-2 py-2 md:static md:bg-transparent md:border-none md:shadow-none md:backdrop-blur-none">
         <div className="flex items-center justify-between md:justify-between mb-2">
           <Button
             variant="outline"
