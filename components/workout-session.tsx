@@ -193,6 +193,10 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
     setCompleting(true)
     try {
       saveChangesToWorkout()
+      
+      // Calculate workout duration
+      const durationMinutes = Math.floor((currentTime - startTime) / 1000 / 60)
+      
       // Prepare completion data
       const exercisesData = exercises.map((ex) => ({
         name: ex.actualName || ex.name,
@@ -204,20 +208,27 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
         adjustment: ex.adjustment,
         description: ex.description,
       }))
-      // Update workout completion count
-      await databaseService.updateWorkoutCompletion(workout.id)
+      
+      // Update workout completion with duration tracking
+      await databaseService.updateWorkoutCompletion(workout.id, durationMinutes, `Completed ${exercisesData.length} exercises`)
+      
       setShowConfirm(false)
       setCompleting(false)
       toast({
         title: "Workout complete",
-        description: "Progress and details are saved. Keep building your legacy.",
+        description: `Progress saved! Duration: ${durationMinutes} minutes. Keep building your legacy.`,
         duration: 5000,
         variant: "default",
       })
       onExit()
     } catch (err) {
       setCompleting(false)
-      // Optionally show error toast
+      toast({
+        title: "Error completing workout",
+        description: "Failed to save progress. Please try again.",
+        duration: 3000,
+        variant: "destructive",
+      })
     }
   }
 

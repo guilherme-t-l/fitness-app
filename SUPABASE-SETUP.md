@@ -17,14 +17,14 @@ This guide will help you set up Supabase for your fitness app to persist workout
 3. Create a `.env.local` file in your project root with:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_project_url_here
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+NEXT_PUBLIC_SUPABASE_URL=your_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 ```
 
 ### 3. Set Up Database Schema
 
 1. Go to **SQL Editor** in your Supabase dashboard
-2. Copy and paste the contents of `supabase-schema.sql`
+2. Copy and paste the entire contents of `supabase-schema.sql`
 3. Click **Run** to create the tables and sample data
 
 ### 4. Test the Integration
@@ -61,6 +61,26 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
 - `adjustment` - Machine position/adjustment
 - `description` - Exercise description
 - `order_index` - Exercise order in workout
+
+**`workout_history`** - Detailed completion tracking
+- `id` - Unique identifier (UUID)
+- `workout_id` - Reference to workout
+- `completed_at` - Completion timestamp
+- `duration` - Workout duration
+- `notes` - Additional notes
+- `user_id` - For future multi-user support
+
+**`exercise_performance`** - Exercise-specific performance data
+- `id` - Unique identifier (UUID)
+- `exercise_id` - Reference to exercise
+- `workout_id` - Reference to workout
+- `completed_at` - Completion timestamp
+- `duration` - Exercise duration
+- `reps` - Repetitions
+- `weight` - Weight used
+- `rest_time` - Rest time between sets
+- `notes` - Additional notes
+- `user_id` - For future multi-user support
 
 ## 🔧 Features Implemented
 
@@ -128,3 +148,44 @@ Once setup is complete, your fitness app will have:
 - ✅ Scalable architecture
 
 Your workouts will now be saved and persist across all sessions! 🏋️‍♂️ 
+
+## New Features Added
+
+### Workout History Tracking
+- **Detailed completion records** with timestamps and duration
+- **Exercise performance tracking** for future weight progression
+- **Progress statistics** calculated in real-time
+- **Category breakdown** for workout type analysis
+
+### Progress Visualization
+- **Real-time metrics** from database
+- **Weekly and monthly goals** with progress tracking
+- **Streak calculations** for motivation
+- **Category performance** breakdown
+- **Achievement system** based on milestones
+
+## Verification
+
+After running the schema, you should see:
+- ✅ Tables created in the Database tab
+- ✅ Sample workouts and exercises inserted
+- ✅ Functions available for progress calculations
+- ✅ Progress page showing real data (after completing workouts)
+
+## Next Steps
+
+1. **Complete a workout** to see progress tracking in action
+2. **Check the Progress page** to see real statistics
+3. **Explore the category breakdown** to understand your workout patterns
+
+## Troubleshooting
+
+If you encounter issues:
+1. **Check the SQL Editor** for any error messages
+2. **Verify your environment variables** are correctly set
+3. **Ensure the schema ran completely** by checking all tables exist
+4. **Try completing a workout** to test the new tracking features
+
+---
+
+**The new workout history system is now ready to track your fitness journey with detailed progress visualization!** 

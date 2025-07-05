@@ -33,6 +33,7 @@ export interface FrontendWorkout {
   completions: number
 }
 
+// Frontend exercise type
 export interface FrontendExercise {
   id: string
   name: string
@@ -43,6 +44,42 @@ export interface FrontendExercise {
   notes?: string
   adjustment?: string
   description?: string
+}
+
+// Workout history types
+export interface WorkoutHistory {
+  id: string
+  workoutId: string
+  completedAt: string
+  durationMinutes?: number
+  notes?: string
+}
+
+export interface ExercisePerformance {
+  id: string
+  workoutHistoryId: string
+  exerciseId: string
+  exerciseName: string
+  setsCompleted: number
+  repsPerformed?: string
+  weightUsed?: string
+  notes?: string
+  createdAt: string
+}
+
+// Progress statistics types
+export interface WorkoutStats {
+  totalWorkouts: number
+  totalCompletions: number
+  thisWeekWorkouts: number
+  thisMonthWorkouts: number
+  currentStreak: number
+}
+
+export interface CategoryBreakdown {
+  category: string
+  workoutCount: number
+  completionCount: number
 }
 
 // Convert database workout to frontend format
@@ -288,8 +325,8 @@ export const databaseService = {
     }
   },
 
-  // Update workout completion
-  async updateWorkoutCompletion(id: string): Promise<void> {
+  // Update workout completion with detailed history
+  async updateWorkoutCompletion(id: string, durationMinutes?: number, notes?: string): Promise<void> {
     try {
       // Fetch current completions
       const { data: workout, error: fetchError } = await supabase
@@ -306,6 +343,8 @@ export const databaseService = {
         throw new Error('No workout found for id: ' + id)
       }
       const newCompletions = (workout.completions || 0) + 1
+      
+      // Update workout completion count
       const { error: updateError, data } = await supabase
         .from('workouts')
         .update({
@@ -322,8 +361,104 @@ export const databaseService = {
         console.error('No data returned from updateWorkoutCompletion', { id })
         throw new Error('No data returned from updateWorkoutCompletion')
       }
+
+      // Create workout history record
+      const { error: historyError } = await supabase
+        .from('workout_history')
+        .insert({
+          workout_id: id,
+          duration_minutes: durationMinutes,
+          notes: notes
+        })
+      if (historyError) {
+        console.error('Error creating workout history:', historyError)
+        throw historyError
+      }
     } catch (error) {
       console.error('Error updating workout completion:', error)
+      throw error
+    }
+  },
+
+  // Get workout statistics
+  async getWorkoutStats(): Promise<WorkoutStats> {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_workout_stats')
+      
+      if (error) throw error
+      if (!data || data.length === 0) {
+        return {
+          totalWorkouts: 0,
+          totalCompletions: 0,
+          thisWeekWorkouts: 0,
+          thisMonthWorkouts: 0,
+          currentStreak: 0
+        }
+      }
+
+      const stats = data[0]
+      return {
+        totalWorkouts: Number(stats.total_workouts) || 0,
+        totalCompletions: Number(stats.total_completions) || 0,
+        thisWeekWorkouts: Number(stats.this_week_workouts) || 0,
+        thisMonthWorkouts: Number(stats.this_month_workouts) || 0,
+        currentStreak: Number(stats.current_streak) || 0
+      }
+    } catch (error) {
+      console.error('Error fetching workout stats:', error)
+      throw error
+    }
+  },
+
+  // Get category breakdown
+  async getCategoryBreakdown(): Promise<CategoryBreakdown[]> {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_category_breakdown')
+      
+      if (error) throw error
+      if (!data) return []
+
+      return data.map((item: any) => ({
+        category: item.category,
+        workoutCount: Number(item.workout_count) || 0,
+        completionCount: Number(item.completion_count) || 0
+      }))
+    } catch (error) {
+      console.error('Error fetching category breakdown:', error)
+      throw error
+    }
+  },
+
+  // Get workout history
+  async getWorkoutHistory(limit: number = 50): Promise<WorkoutHistory[]> {
+    try {
+      const { data, error } = await supabase
+        .from('workout_history')
+        .select(`
+          id,
+          workout_id,
+          completed_at,
+          duration_minutes,
+          notes,
+          workouts!inner(name, category)
+        `)
+        .order('completed_at', { ascending: false })
+        .limit(limit)
+      
+      if (error) throw error
+      if (!data) return []
+
+      return data.map((item: any) => ({
+        id: item.id,
+        workoutId: item.workout_id,
+        completedAt: item.completed_at,
+        durationMinutes: item.duration_minutes,
+        notes: item.notes
+      }))
+    } catch (error) {
+      console.error('Error fetching workout history:', error)
       throw error
     }
   },

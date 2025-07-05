@@ -34,11 +34,39 @@ CREATE TABLE IF NOT EXISTS exercises (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create workout_history table for detailed tracking
+CREATE TABLE IF NOT EXISTS workout_history (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    workout_id UUID NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+    completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    duration_minutes INTEGER,
+    notes TEXT,
+    user_id UUID -- For future multi-user support
+);
+
+-- Create exercise_performance table for detailed exercise tracking
+CREATE TABLE IF NOT EXISTS exercise_performance (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    workout_history_id UUID NOT NULL REFERENCES workout_history(id) ON DELETE CASCADE,
+    exercise_id UUID NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+    exercise_name VARCHAR(255) NOT NULL,
+    sets_completed INTEGER NOT NULL,
+    reps_performed VARCHAR(50),
+    weight_used VARCHAR(50),
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_workouts_user_id ON workouts(user_id);
 CREATE INDEX IF NOT EXISTS idx_workouts_created_at ON workouts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_workouts_category ON workouts(category);
 CREATE INDEX IF NOT EXISTS idx_exercises_workout_id ON exercises(workout_id);
 CREATE INDEX IF NOT EXISTS idx_exercises_order_index ON exercises(workout_id, order_index);
+CREATE INDEX IF NOT EXISTS idx_workout_history_workout_id ON workout_history(workout_id);
+CREATE INDEX IF NOT EXISTS idx_workout_history_completed_at ON workout_history(completed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_exercise_performance_history_id ON exercise_performance(workout_history_id);
+CREATE INDEX IF NOT EXISTS idx_exercise_performance_exercise_id ON exercise_performance(exercise_id);
 
 -- Create function to increment completions
 CREATE OR REPLACE FUNCTION increment_completions(workout_uuid UUID)
@@ -51,16 +79,103 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create RLS (Row Level Security) policies for future multi-user support
+-- Create function to get workout statistics
+CREATE OR REPLACE FUNCTION get_workout_stats()
+RETURNS TABLE (
+    total_workouts BIGINT,
+    total_completions BIGINT,
+    this_week_workouts BIGINT,
+    this_month_workouts BIGINT,
+    current_streak INTEGER
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH stats AS (
+        SELECT 
+            COUNT(DISTINCT w.id) as total_workouts,
+            COALESCE(SUM(w.completions), 0) as total_completions,
+            COUNT(CASE WHEN wh.completed_at >= NOW() - INTERVAL '7 days' THEN 1 END) as this_week_workouts,
+            COUNT(CASE WHEN wh.completed_at >= NOW() - INTERVAL '30 days' THEN 1 END) as this_month_workouts
+        FROM workouts w
+        LEFT JOIN workout_history wh ON w.id = wh.workout_id
+    ),
+    streak_calc AS (
+        SELECT 
+            CASE 
+                WHEN MAX(wh.completed_at) IS NULL THEN 0
+                ELSE (
+                    SELECT COUNT(*)::INTEGER
+                    FROM (
+                        SELECT DISTINCT DATE(wh2.completed_at) as workout_date
+                        FROM workout_history wh2
+                        WHERE wh2.completed_at >= (
+                            SELECT MAX(wh3.completed_at) - INTERVAL '30 days'
+                            FROM workout_history wh3
+                        )
+                        ORDER BY workout_date DESC
+                    ) dates
+                    WHERE dates.workout_date >= (
+                        SELECT MAX(DATE(wh4.completed_at)) - INTERVAL '30 days'
+                        FROM workout_history wh4
+                    )
+                )
+            END as current_streak
+        FROM workout_history wh
+    )
+    SELECT 
+        s.total_workouts,
+        s.total_completions,
+        s.this_week_workouts,
+        s.this_month_workouts,
+        sc.current_streak
+    FROM stats s, streak_calc sc;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create function to get category breakdown
+CREATE OR REPLACE FUNCTION get_category_breakdown()
+RETURNS TABLE (
+    category VARCHAR(100),
+    workout_count BIGINT,
+    completion_count BIGINT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        w.category,
+        COUNT(DISTINCT w.id) as workout_count,
+        COALESCE(SUM(w.completions), 0) as completion_count
+    FROM workouts w
+    WHERE w.category IS NOT NULL
+    GROUP BY w.category
+    ORDER BY completion_count DESC;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Enable RLS (Row Level Security) policies for future multi-user support
 -- For now, we'll allow all operations (single user)
 ALTER TABLE workouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE exercises ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workout_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE exercise_performance ENABLE ROW LEVEL SECURITY;
 
--- Allow all operations for now (single user setup)
+-- Drop existing policies if they exist, then create new ones
+DROP POLICY IF EXISTS "Allow all operations on workouts" ON workouts;
+DROP POLICY IF EXISTS "Allow all operations on exercises" ON exercises;
+DROP POLICY IF EXISTS "Allow all operations on workout_history" ON workout_history;
+DROP POLICY IF EXISTS "Allow all operations on exercise_performance" ON exercise_performance;
+
+-- Create new policies
 CREATE POLICY "Allow all operations on workouts" ON workouts
     FOR ALL USING (true);
 
 CREATE POLICY "Allow all operations on exercises" ON exercises
+    FOR ALL USING (true);
+
+CREATE POLICY "Allow all operations on workout_history" ON workout_history
+    FOR ALL USING (true);
+
+CREATE POLICY "Allow all operations on exercise_performance" ON exercise_performance
     FOR ALL USING (true);
 
 -- Insert sample data (optional - you can remove this if you want to start fresh)
