@@ -33,8 +33,8 @@ interface Workout {
   description: string
   exercises: Exercise[]
   estimatedDuration: string
-  difficulty: "Beginner" | "Intermediate" | "Advanced"
-  category: string
+  workoutType: "Strength" | "Hypertrophy" | "Endurance" | "Cardio" | "Mobility" | "Skill" | "Recovery"
+  categories: string[]
 }
 
 interface WorkoutSessionProps {

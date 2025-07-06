@@ -12,8 +12,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Plus, Trash2, Save, ChevronUp, ChevronDown, GripVertical } from "lucide-react"
 import { AutocompleteInput } from "@/components/ui/autocomplete-input"
 import { ExerciseDndWrapper } from "@/components/ui/exercise-dnd-wrapper"
+import { MultiSelect } from "@/components/ui/multi-select"
 import { calculateWorkoutDuration } from "@/lib/utils"
 import { useExercises } from "@/hooks/useExercises"
+import { useCategories } from "@/hooks/useCategories"
 import { ExerciseList } from "@/components/exercise/ExerciseList"
 
 interface Exercise {
@@ -33,8 +35,8 @@ interface Workout {
   description: string
   exercises: Exercise[]
   estimatedDuration: string
-  difficulty: "Beginner" | "Intermediate" | "Advanced"
-  category: string
+  workoutType: "Strength" | "Hypertrophy" | "Endurance" | "Cardio" | "Mobility" | "Skill" | "Recovery"
+  categories: string[]
 }
 
 interface CreateWorkoutFormProps {
@@ -67,11 +69,21 @@ const exerciseLibrary = [
 export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
   const [workoutName, setWorkoutName] = useState("")
   const [workoutDescription, setWorkoutDescription] = useState("")
-  const [difficulty, setDifficulty] = useState<"Beginner" | "Intermediate" | "Advanced">("Beginner")
-  const [category, setCategory] = useState("")
+  const [workoutType, setWorkoutType] = useState<"Strength" | "Hypertrophy" | "Endurance" | "Cardio" | "Mobility" | "Skill" | "Recovery">("Strength")
+  const [categories, setCategories] = useState<string[]>([])
   const [estimatedDuration, setEstimatedDuration] = useState("")
   const [durationManuallyEdited, setDurationManuallyEdited] = useState(false)
   const [exercises, setExercises] = useState<Exercise[]>([])
+
+  const { categories: availableCategories, loading: categoriesLoading, saveNewCategory, deleteCategory } = useCategories()
+
+  const handleNewCategory = async (newCategory: string) => {
+    await saveNewCategory(newCategory)
+  }
+
+  const handleDeleteCategory = async (category: string) => {
+    await deleteCategory(category)
+  }
 
   const addExercise = () => {
     const newExercise: Exercise = {
@@ -121,8 +133,8 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
       description: workoutDescription,
       exercises: exercises.filter((ex) => ex.name),
       estimatedDuration,
-      difficulty,
-      category,
+      workoutType,
+      categories,
     }
 
     onSubmit(workout)
@@ -171,28 +183,37 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label className="text-gray-300">Difficulty</Label>
-          <Select value={difficulty} onValueChange={(value: any) => setDifficulty(value)}>
+          <Label className="text-gray-300">Workout Type</Label>
+          <Select value={workoutType} onValueChange={(value: any) => setWorkoutType(value)}>
             <SelectTrigger className="bg-gray-800/50 border-gray-600 text-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Beginner">Beginner</SelectItem>
-              <SelectItem value="Intermediate">Intermediate</SelectItem>
-              <SelectItem value="Advanced">Advanced</SelectItem>
+              <SelectItem value="Strength">Strength</SelectItem>
+              <SelectItem value="Hypertrophy">Hypertrophy</SelectItem>
+              <SelectItem value="Endurance">Endurance</SelectItem>
+              <SelectItem value="Cardio">Cardio</SelectItem>
+              <SelectItem value="Mobility">Mobility</SelectItem>
+              <SelectItem value="Skill">Skill</SelectItem>
+              <SelectItem value="Recovery">Recovery</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="category" className="text-gray-300">
-            Category
+          <Label htmlFor="category" className="text-gray-300 font-medium">
+            Categories
           </Label>
-          <Input
-            id="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="e.g., Strength, Cardio, HIIT"
-            className="bg-gray-800/50 border-gray-600 text-white"
+          <MultiSelect
+            options={availableCategories}
+            selected={categories}
+            onChange={setCategories}
+            onNewOption={handleNewCategory}
+            onDeleteOption={handleDeleteCategory}
+            placeholder="Select or create categories..."
+            searchPlaceholder="Search categories..."
+            emptyText="No categories found. Type to create a new one."
+            disabled={categoriesLoading}
+            className="transition-all duration-200 focus-within:ring-2 focus-within:ring-green-500/50"
           />
         </div>
       </div>

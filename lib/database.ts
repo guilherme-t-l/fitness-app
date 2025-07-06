@@ -26,8 +26,8 @@ export interface FrontendWorkout {
   description: string
   exercises: FrontendExercise[]
   estimatedDuration: string
-  difficulty: "Beginner" | "Intermediate" | "Advanced"
-  category: string
+  workoutType: "Strength" | "Hypertrophy" | "Endurance" | "Cardio" | "Mobility" | "Skill" | "Recovery"
+  categories: string[]
   createdAt: string
   lastCompleted?: string
   completions: number
@@ -89,8 +89,8 @@ const convertWorkoutToFrontend = (workout: Workout, exercises: Exercise[]): Fron
     name: workout.name,
     description: workout.description,
     estimatedDuration: workout.estimated_duration,
-    difficulty: workout.difficulty,
-    category: workout.category,
+    workoutType: workout.workout_type,
+    categories: (workout as any).categories || [],
     createdAt: workout.created_at,
     lastCompleted: workout.last_completed || undefined,
     completions: workout.completions,
@@ -113,15 +113,15 @@ const convertWorkoutToDatabase = (workout: Omit<FrontendWorkout, 'id' | 'created
   workout: WorkoutInsert
   exercises: ExerciseInsert[]
 } => {
-  const workoutData: WorkoutInsert = {
+  const workoutData = {
     name: workout.name,
     description: workout.description,
     estimated_duration: workout.estimatedDuration,
-    difficulty: workout.difficulty,
-    category: workout.category,
+    workout_type: workout.workoutType,
+    categories: workout.categories,
     last_completed: workout.lastCompleted,
     completions: 0,
-  }
+  } as unknown as WorkoutInsert
 
   const exercisesData: ExerciseInsert[] = workout.exercises.map((exercise, index) => ({
     workout_id: '', // Will be set after workout creation
@@ -251,8 +251,8 @@ export const databaseService = {
       if (workoutData.name) workoutUpdate.name = workoutData.name
       if (workoutData.description) workoutUpdate.description = workoutData.description
       if (workoutData.estimatedDuration) workoutUpdate.estimated_duration = workoutData.estimatedDuration
-      if (workoutData.difficulty) workoutUpdate.difficulty = workoutData.difficulty
-      if (workoutData.category) workoutUpdate.category = workoutData.category
+      if (workoutData.workoutType) workoutUpdate.workout_type = workoutData.workoutType
+      if (workoutData.categories) (workoutUpdate as any).categories = workoutData.categories
       if (workoutData.lastCompleted) workoutUpdate.last_completed = workoutData.lastCompleted
 
       const { error: workoutError } = await supabase
@@ -427,6 +427,50 @@ export const databaseService = {
       }))
     } catch (error) {
       console.error('Error fetching category breakdown:', error)
+      throw error
+    }
+  },
+
+  // Get all unique categories
+  async getAllCategories(): Promise<string[]> {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_all_categories')
+      
+      if (error) throw error
+      if (!data) return []
+
+      return data.map((item: any) => item.name)
+    } catch (error) {
+      console.error('Error fetching all categories:', error)
+      throw error
+    }
+  },
+
+  // Save new category to database
+  async saveNewCategory(category: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .rpc('increment_category_usage', { category_name: category })
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error saving new category:', error)
+      throw error
+    }
+  },
+
+  // Delete category from database
+  async deleteCategory(category: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('name', category)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error deleting category:', error)
       throw error
     }
   },
