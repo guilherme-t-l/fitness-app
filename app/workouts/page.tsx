@@ -188,7 +188,18 @@ export default function WorkoutsPage() {
                   <div className="flex items-center space-x-2">
                     <Badge className={getWorkoutTypeColor(workout.workoutType)} variant="default">{workout.workoutType}</Badge>
                     {workout.categories.length > 0 && (
-                      <Badge variant="outline" className="border-green-400/50 text-green-400">{workout.categories[0]}</Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {workout.categories.slice(0, 2).map((category, index) => (
+                          <Badge key={index} variant="outline" className="border-green-400/50 text-green-400 text-xs font-medium transition-colors hover:bg-green-400/10">
+                            {category}
+                          </Badge>
+                        ))}
+                        {workout.categories.length > 2 && (
+                          <Badge variant="outline" className="border-green-400/50 text-green-400 text-xs font-medium transition-colors hover:bg-green-400/10">
+                            +{workout.categories.length - 2} more
+                          </Badge>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

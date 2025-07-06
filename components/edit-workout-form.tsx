@@ -12,8 +12,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Plus, Trash2, Save, ChevronUp, ChevronDown, GripVertical } from "lucide-react"
 import { AutocompleteInput } from "@/components/ui/autocomplete-input"
 import { ExerciseDndWrapper } from "@/components/ui/exercise-dnd-wrapper"
+import { MultiSelect } from "@/components/ui/multi-select"
 import { calculateWorkoutDuration } from "@/lib/utils"
 import { useExercises } from "@/hooks/useExercises"
+import { useCategories } from "@/hooks/useCategories"
 import { ExerciseList } from "@/components/exercise/ExerciseList"
 
 interface Exercise {
@@ -82,6 +84,16 @@ export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
   const [estimatedDuration, setEstimatedDuration] = useState(workout.estimatedDuration)
   const [durationManuallyEdited, setDurationManuallyEdited] = useState(false)
   const [exercises, setExercises] = useState<Exercise[]>(workout.exercises)
+
+  const { categories: availableCategories, loading: categoriesLoading, saveNewCategory, deleteCategory } = useCategories()
+
+  const handleNewCategory = async (newCategory: string) => {
+    await saveNewCategory(newCategory)
+  }
+
+  const handleDeleteCategory = async (category: string) => {
+    await deleteCategory(category)
+  }
 
   const addExercise = () => {
     const newExercise: Exercise = {
@@ -199,15 +211,20 @@ export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
           </Select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="category" className="text-gray-300">
+          <Label htmlFor="category" className="text-gray-300 font-medium">
             Categories
           </Label>
-          <Input
-            id="category"
-            value={categories.join(", ")}
-            onChange={(e) => setCategories(e.target.value.split(", ").filter(c => c.trim()))}
-            placeholder="e.g., Upper Body, Push, Core"
-            className="bg-gray-800/50 border-gray-600 text-white"
+          <MultiSelect
+            options={availableCategories}
+            selected={categories}
+            onChange={setCategories}
+            onNewOption={handleNewCategory}
+            onDeleteOption={handleDeleteCategory}
+            placeholder="Select or create categories..."
+            searchPlaceholder="Search categories..."
+            emptyText="No categories found. Type to create a new one."
+            disabled={categoriesLoading}
+            className="transition-all duration-200 focus-within:ring-2 focus-within:ring-green-500/50"
           />
         </div>
       </div>

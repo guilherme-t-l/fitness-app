@@ -431,6 +431,50 @@ export const databaseService = {
     }
   },
 
+  // Get all unique categories
+  async getAllCategories(): Promise<string[]> {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_all_categories')
+      
+      if (error) throw error
+      if (!data) return []
+
+      return data.map((item: any) => item.name)
+    } catch (error) {
+      console.error('Error fetching all categories:', error)
+      throw error
+    }
+  },
+
+  // Save new category to database
+  async saveNewCategory(category: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .rpc('increment_category_usage', { category_name: category })
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error saving new category:', error)
+      throw error
+    }
+  },
+
+  // Delete category from database
+  async deleteCategory(category: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('name', category)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error deleting category:', error)
+      throw error
+    }
+  },
+
   // Get workout history
   async getWorkoutHistory(limit: number = 50): Promise<WorkoutHistory[]> {
     try {
