@@ -22,7 +22,7 @@ export interface Database {
           description: string
           estimated_duration: string
           workout_type: 'Strength' | 'Hypertrophy' | 'Endurance' | 'Cardio' | 'Mobility' | 'Skill' | 'Recovery'
-          category: string
+          categories: any // JSONB array of strings
           created_at: string
           last_completed?: string
           completions: number
@@ -34,7 +34,7 @@ export interface Database {
           description: string
           estimated_duration: string
           workout_type: 'Strength' | 'Hypertrophy' | 'Endurance' | 'Cardio' | 'Mobility' | 'Skill' | 'Recovery'
-          category: string
+          categories?: any // JSONB array of strings
           created_at?: string
           last_completed?: string
           completions?: number
@@ -46,7 +46,7 @@ export interface Database {
           description?: string
           estimated_duration?: string
           workout_type?: 'Strength' | 'Hypertrophy' | 'Endurance' | 'Cardio' | 'Mobility' | 'Skill' | 'Recovery'
-          category?: string
+          categories?: any // JSONB array of strings
           created_at?: string
           last_completed?: string
           completions?: number

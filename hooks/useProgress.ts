@@ -20,12 +20,29 @@ export function useProgress() {
       setLoading(true)
       setError(null)
       
+      console.log('Loading progress data...')
+      
       // Load all progress data in parallel
       const [statsData, categoryData, historyData] = await Promise.all([
-        databaseService.getWorkoutStats(),
-        databaseService.getCategoryBreakdown(),
-        databaseService.getWorkoutHistory(20) // Limit to recent 20 workouts
+        databaseService.getWorkoutStats().catch(err => {
+          console.error('Error loading workout stats:', err)
+          throw err
+        }),
+        databaseService.getCategoryBreakdown().catch(err => {
+          console.error('Error loading category breakdown:', err)
+          throw err
+        }),
+        databaseService.getWorkoutHistory(20).catch(err => {
+          console.error('Error loading workout history:', err)
+          throw err
+        })
       ])
+
+      console.log('Progress data loaded successfully:', {
+        stats: statsData,
+        categories: categoryData,
+        history: historyData
+      })
 
       setStats(statsData)
       setCategoryBreakdown(categoryData)
