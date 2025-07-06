@@ -486,7 +486,7 @@ export const databaseService = {
           completed_at,
           duration_minutes,
           notes,
-          workouts!inner(name, category)
+          workouts!inner(name, workout_type, categories)
         `)
         .order('completed_at', { ascending: false })
         .limit(limit)
