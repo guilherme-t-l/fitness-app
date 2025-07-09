@@ -7,11 +7,13 @@ import { useWorkouts } from "@/hooks/useWorkouts"
 import { type FrontendWorkout } from "@/lib/database"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Loader2 } from "lucide-react"
+import { useAuth } from '@/components/AuthProvider'
 
 export default function WorkoutDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { workouts, loading, error, completeWorkout, updateWorkoutExercises } = useWorkouts()
+  const { user } = useAuth()
+  const { workouts, loading, error, completeWorkout, updateWorkoutExercises } = useWorkouts(user?.id)
   const [workout, setWorkout] = useState<FrontendWorkout | null>(null)
   const [notFound, setNotFound] = useState(false)
 

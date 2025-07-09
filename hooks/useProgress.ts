@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { databaseService, type WorkoutStats, type CategoryBreakdown, type WorkoutHistory } from '@/lib/database'
 
-export function useProgress() {
+export function useProgress(userId?: string) {
   const [stats, setStats] = useState<WorkoutStats>({
     totalWorkouts: 0,
     totalCompletions: 0,
@@ -22,20 +22,11 @@ export function useProgress() {
       
       console.log('Loading progress data...')
       
-      // Load all progress data in parallel
+      // Load all progress data in parallel, pass userId if needed
       const [statsData, categoryData, historyData] = await Promise.all([
-        databaseService.getWorkoutStats().catch(err => {
-          console.error('Error loading workout stats:', err)
-          throw err
-        }),
-        databaseService.getCategoryBreakdown().catch(err => {
-          console.error('Error loading category breakdown:', err)
-          throw err
-        }),
-        databaseService.getWorkoutHistory(20).catch(err => {
-          console.error('Error loading workout history:', err)
-          throw err
-        })
+        databaseService.getWorkoutStats(userId),
+        databaseService.getCategoryBreakdown(userId),
+        databaseService.getWorkoutHistory(20, userId)
       ])
 
       console.log('Progress data loaded successfully:', {
@@ -53,14 +44,14 @@ export function useProgress() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [userId])
 
   // Refresh progress data
   const refreshProgress = useCallback(async () => {
     await loadProgressData()
   }, [loadProgressData])
 
-  // Load data on mount
+  // Load data on mount or when userId changes
   useEffect(() => {
     loadProgressData()
   }, [loadProgressData])

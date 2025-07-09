@@ -12,6 +12,7 @@ import { CreateWorkoutForm } from "@/components/create-workout-form"
 import { EditWorkoutForm } from "@/components/edit-workout-form"
 import { useWorkouts } from "@/hooks/useWorkouts"
 import { type FrontendWorkout, type FrontendExercise } from "@/lib/database"
+import { useAuth } from '@/components/AuthProvider'
 
 // Use the types from database service
 type Exercise = FrontendExercise
@@ -25,6 +26,7 @@ type Workout = FrontendWorkout
 // - Consider splitting business logic from UI rendering for future scalability.
 
 export default function WorkoutsPage() {
+  const { user } = useAuth()
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
   const { 
@@ -34,7 +36,7 @@ export default function WorkoutsPage() {
     createWorkout, 
     updateWorkout, 
     deleteWorkout
-  } = useWorkouts()
+  } = useWorkouts(user?.id)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)

@@ -146,9 +146,9 @@ const convertWorkoutToDatabase = async (workout: Omit<FrontendWorkout, 'id' | 'c
 // Database operations
 export const databaseService = {
   // Get all workouts with exercises
-  async getWorkouts(): Promise<FrontendWorkout[]> {
+  async getWorkouts(userId?: string): Promise<FrontendWorkout[]> {
     try {
-      const user_id = await getCurrentUserId();
+      const user_id = userId || await getCurrentUserId();
       // Get only workouts for the current user (or default user if guest)
       const { data: workouts, error: workoutsError } = await supabase
         .from('workouts')
@@ -414,10 +414,12 @@ export const databaseService = {
   },
 
   // Get workout statistics
-  async getWorkoutStats(): Promise<WorkoutStats> {
+  async getWorkoutStats(userId?: string): Promise<WorkoutStats> {
     try {
+      // If you have a user-specific stats RPC, pass userId; otherwise, filter in the RPC or query
+      const user_id = userId || await getCurrentUserId();
       const { data, error } = await supabase
-        .rpc('get_workout_stats')
+        .rpc('get_workout_stats', { user_id });
       
       if (error) throw error
       if (!data || data.length === 0) {
@@ -445,10 +447,11 @@ export const databaseService = {
   },
 
   // Get category breakdown
-  async getCategoryBreakdown(): Promise<CategoryBreakdown[]> {
+  async getCategoryBreakdown(userId?: string): Promise<CategoryBreakdown[]> {
     try {
+      const user_id = userId || await getCurrentUserId();
       const { data, error } = await supabase
-        .rpc('get_category_breakdown')
+        .rpc('get_category_breakdown', { user_id });
       
       if (error) throw error
       if (!data) return []
@@ -465,10 +468,11 @@ export const databaseService = {
   },
 
   // Get all unique categories
-  async getAllCategories(): Promise<string[]> {
+  async getAllCategories(userId?: string): Promise<string[]> {
     try {
+      const user_id = userId || await getCurrentUserId();
       const { data, error } = await supabase
-        .rpc('get_all_categories')
+        .rpc('get_all_categories', { user_id });
       
       if (error) throw error
       if (!data) return []
@@ -509,8 +513,9 @@ export const databaseService = {
   },
 
   // Get workout history
-  async getWorkoutHistory(limit: number = 50): Promise<WorkoutHistory[]> {
+  async getWorkoutHistory(limit: number = 50, userId?: string): Promise<WorkoutHistory[]> {
     try {
+      const user_id = userId || await getCurrentUserId();
       const { data, error } = await supabase
         .from('workout_history')
         .select(`
@@ -521,6 +526,7 @@ export const databaseService = {
           notes,
           workouts!inner(name, workout_type, categories)
         `)
+        .eq('user_id', user_id)
         .order('completed_at', { ascending: false })
         .limit(limit)
       
@@ -635,13 +641,10 @@ export async function createStarterWorkoutsForUser(user_id: string) {
   for (const workout of starterWorkouts) {
     await databaseService.createWorkout({
       ...workout,
-      // user_id will be set by createWorkout via getCurrentUserId, so we override getCurrentUserId temporarily
-      // We'll use a hack: temporarily override getCurrentUserId to return the provided user_id
-      // This is safe because this function is only called in a controlled context
       id: undefined,
       createdAt: new Date().toISOString(),
       completions: 0,
-    } as any, user_id);
+    } as any); // Remove user_id argument, handled internally
   }
 }
 

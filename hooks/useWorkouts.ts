@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { databaseService, type FrontendWorkout, type FrontendExercise } from '@/lib/database'
 
-export function useWorkouts() {
+export function useWorkouts(userId?: string) {
   const [workouts, setWorkouts] = useState<FrontendWorkout[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -11,7 +11,7 @@ export function useWorkouts() {
     try {
       setLoading(true)
       setError(null)
-      const data = await databaseService.getWorkouts()
+      const data = await databaseService.getWorkouts(userId)
       setWorkouts(data)
     } catch (err) {
       console.error('Error loading workouts:', err)
@@ -19,7 +19,7 @@ export function useWorkouts() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [userId])
 
   // Create new workout
   const createWorkout = useCallback(async (workoutData: Omit<FrontendWorkout, 'id' | 'createdAt' | 'completions'>) => {
@@ -100,7 +100,7 @@ export function useWorkouts() {
     }
   }, [])
 
-  // Load workouts on mount
+  // Load workouts on mount or when userId changes
   useEffect(() => {
     loadWorkouts()
   }, [loadWorkouts])

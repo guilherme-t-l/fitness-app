@@ -18,6 +18,7 @@ import { useExercises } from "@/hooks/useExercises"
 import { useCategories } from "@/hooks/useCategories"
 import { ExerciseList } from "@/components/exercise/ExerciseList"
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/AuthProvider'
 
 interface Exercise {
   id: string
@@ -68,6 +69,7 @@ const exerciseLibrary = [
 ]
 
 export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
+  const { user } = useAuth()
   const [workoutName, setWorkoutName] = useState("")
   const [workoutDescription, setWorkoutDescription] = useState("")
   const [workoutType, setWorkoutType] = useState<"Strength" | "Hypertrophy" | "Endurance" | "Cardio" | "Mobility" | "Skill" | "Recovery">("Strength")
@@ -79,7 +81,7 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const { categories: availableCategories, loading: categoriesLoading, saveNewCategory, deleteCategory } = useCategories()
+  const { categories: availableCategories, loading: categoriesLoading, saveNewCategory, deleteCategory } = useCategories(user?.id)
 
   const handleNewCategory = async (newCategory: string) => {
     await saveNewCategory(newCategory)

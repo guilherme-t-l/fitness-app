@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog';
 import { Button } from './button';
 import { Input } from './input';
 import { useAuth } from '@/components/AuthProvider';
+import { useRouter } from 'next/navigation';
 
 export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { login, signup, loading } = useAuth();
@@ -11,6 +12,7 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +21,15 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
     if (mode === 'login') {
       const { error } = await login(email, password) as any;
       if (error) setError(error.message || 'Login failed');
-      else onOpenChange(false);
+      else {
+        onOpenChange(false);
+        // Refresh the route to update user context everywhere
+        if (router && typeof router.refresh === 'function') {
+          router.refresh();
+        } else {
+          window.location.reload();
+        }
+      }
     } else {
       const { error } = await signup(email, password) as any;
       if (error) setError(error.message || 'Signup failed');
