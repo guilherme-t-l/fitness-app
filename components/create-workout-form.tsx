@@ -17,6 +17,7 @@ import { calculateWorkoutDuration } from "@/lib/utils"
 import { useExercises } from "@/hooks/useExercises"
 import { useCategories } from "@/hooks/useCategories"
 import { ExerciseList } from "@/components/exercise/ExerciseList"
+import { useToast } from '@/hooks/use-toast';
 
 interface Exercise {
   id: string
@@ -74,6 +75,9 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
   const [estimatedDuration, setEstimatedDuration] = useState("")
   const [durationManuallyEdited, setDurationManuallyEdited] = useState(false)
   const [exercises, setExercises] = useState<Exercise[]>([])
+  const { toast } = useToast();
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const { categories: availableCategories, loading: categoriesLoading, saveNewCategory, deleteCategory } = useCategories()
 
@@ -124,20 +128,32 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
     setExercises((prev) => newOrder.map((id) => prev.find((ex) => ex.id === id)!))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!workoutName || exercises.length === 0) return
+    setFormError(null);
+    setSaving(true);
+    try {
+      const workout: Workout = {
+        name: workoutName,
+        description: workoutDescription,
+        exercises: exercises.filter((ex) => ex.name),
+        estimatedDuration,
+        workoutType,
+        categories,
+      }
 
-    const workout: Workout = {
-      name: workoutName,
-      description: workoutDescription,
-      exercises: exercises.filter((ex) => ex.name),
-      estimatedDuration,
-      workoutType,
-      categories,
+      await onSubmit(workout)
+    } catch (err: any) {
+      setFormError(err?.message || 'Failed to create workout');
+      toast({
+        title: 'Error',
+        description: err?.message || 'Failed to create workout',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
     }
-
-    onSubmit(workout)
   }
 
   useEffect(() => {
@@ -370,12 +386,13 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
         <Button
           type="submit"
           className="primary-glow text-white font-semibold"
-          disabled={!workoutName || exercises.length === 0}
+          disabled={!workoutName || exercises.length === 0 || saving}
         >
           <Save className="h-4 w-4 mr-2" />
-          Create Workout
+          {saving ? 'Saving...' : 'Create Workout'}
         </Button>
       </div>
+      {formError && <div className="text-red-400 text-sm mb-2">{formError}</div>}
     </form>
   )
 }

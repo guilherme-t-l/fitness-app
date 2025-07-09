@@ -17,6 +17,7 @@ import { calculateWorkoutDuration } from "@/lib/utils"
 import { useExercises } from "@/hooks/useExercises"
 import { useCategories } from "@/hooks/useCategories"
 import { ExerciseList } from "@/components/exercise/ExerciseList"
+import { useToast } from '@/hooks/use-toast';
 
 interface Exercise {
   id: string
@@ -84,6 +85,9 @@ export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
   const [estimatedDuration, setEstimatedDuration] = useState(workout.estimatedDuration)
   const [durationManuallyEdited, setDurationManuallyEdited] = useState(false)
   const [exercises, setExercises] = useState<Exercise[]>(workout.exercises)
+  const { toast } = useToast();
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const { categories: availableCategories, loading: categoriesLoading, saveNewCategory, deleteCategory } = useCategories()
 
@@ -134,21 +138,32 @@ export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
     setExercises((prev) => newOrder.map((id) => prev.find((ex) => ex.id === id)!))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!workoutName || exercises.length === 0) return
-
-    const updatedWorkout = {
-      name: workoutName,
-      description: workoutDescription,
-      exercises: exercises.filter((ex) => ex.name),
-      estimatedDuration,
-      workoutType,
-      categories,
-      lastCompleted: workout.lastCompleted,
+    setFormError(null);
+    setSaving(true);
+    try {
+      const updatedWorkout = {
+        name: workoutName,
+        description: workoutDescription,
+        exercises: exercises.filter((ex) => ex.name),
+        estimatedDuration,
+        workoutType,
+        categories,
+        lastCompleted: workout.lastCompleted,
+      }
+      await onSubmit(updatedWorkout)
+    } catch (err: any) {
+      setFormError(err?.message || 'Failed to save workout');
+      toast({
+        title: 'Error',
+        description: err?.message || 'Failed to save workout',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
     }
-
-    onSubmit(updatedWorkout)
   }
 
   useEffect(() => {
@@ -378,13 +393,14 @@ export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
 
       {/* Submit */}
       <div className="flex justify-end space-x-4">
+        {formError && <div className="text-red-400 text-sm mb-2">{formError}</div>}
         <Button
           type="submit"
           className="primary-glow text-white font-semibold"
-          disabled={!workoutName || exercises.length === 0}
+          disabled={!workoutName || exercises.length === 0 || saving}
         >
           <Save className="h-4 w-4 mr-2" />
-          Save Changes
+          {saving ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
     </form>
