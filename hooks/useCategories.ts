@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { databaseService } from '@/lib/database'
 
-export function useCategories() {
+export function useCategories(userId?: string) {
   const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -11,8 +11,7 @@ export function useCategories() {
     try {
       setLoading(true)
       setError(null)
-      
-      const categoriesData = await databaseService.getAllCategories()
+      const categoriesData = await databaseService.getAllCategories(userId)
       setCategories(categoriesData)
     } catch (err) {
       console.error('Error loading categories:', err)
@@ -20,7 +19,7 @@ export function useCategories() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [userId])
 
   // Save new category and refresh list
   const saveNewCategory = useCallback(async (category: string) => {
@@ -51,7 +50,7 @@ export function useCategories() {
     await loadCategories()
   }, [loadCategories])
 
-  // Load data on mount
+  // Load data on mount or when userId changes
   useEffect(() => {
     loadCategories()
   }, [loadCategories])

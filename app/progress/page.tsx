@@ -8,8 +8,10 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, BarChart, Bar } from "recharts"
 import { useProgress } from "@/hooks/useProgress"
 import { ProgressMetrics } from "@/components/progress-metrics"
+import { useAuth } from '@/components/AuthProvider'
 
 export default function ProgressPage() {
+  const { user } = useAuth()
   const {
     stats,
     categoryBreakdown,
@@ -21,7 +23,7 @@ export default function ProgressPage() {
     monthlyTrend,
     loading,
     error
-  } = useProgress()
+  } = useProgress(user?.id)
 
   if (loading) {
     return (
