@@ -108,10 +108,12 @@ export function MultiSelect({
                 }}
               >
                 {item}
-                <button
-                  className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all"
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all cursor-pointer"
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" || e.key === " ") {
                       handleUnselect(item)
                     }
                   }}
@@ -124,9 +126,10 @@ export function MultiSelect({
                     e.stopPropagation()
                     handleUnselect(item)
                   }}
+                  aria-label={`Remove ${item}`}
                 >
                   <X className="h-3 w-3 text-green-400 hover:text-green-300 transition-colors" />
-                </button>
+                </span>
               </Badge>
             ))}
           </div>

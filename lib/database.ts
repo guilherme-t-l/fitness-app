@@ -5,6 +5,7 @@
 
 import { supabase } from './supabase'
 import type { Database } from './supabase'
+import { getCurrentUserId, DEFAULT_USER_ID } from './utils'
 
 type Workout = Database['public']['Tables']['workouts']['Row']
 type WorkoutInsert = Database['public']['Tables']['workouts']['Insert']
@@ -109,10 +110,11 @@ const convertWorkoutToFrontend = (workout: Workout, exercises: Exercise[]): Fron
 }
 
 // Convert frontend workout to database format
-const convertWorkoutToDatabase = (workout: Omit<FrontendWorkout, 'id' | 'createdAt' | 'completions'>): {
+const convertWorkoutToDatabase = async (workout: Omit<FrontendWorkout, 'id' | 'createdAt' | 'completions'>): Promise<{
   workout: WorkoutInsert
   exercises: ExerciseInsert[]
-} => {
+}> => {
+  const user_id = await getCurrentUserId()
   const workoutData = {
     name: workout.name,
     description: workout.description,
@@ -121,6 +123,7 @@ const convertWorkoutToDatabase = (workout: Omit<FrontendWorkout, 'id' | 'created
     categories: workout.categories,
     last_completed: workout.lastCompleted,
     completions: 0,
+    user_id,
   } as unknown as WorkoutInsert
 
   const exercisesData: ExerciseInsert[] = workout.exercises.map((exercise, index) => ({
@@ -134,6 +137,7 @@ const convertWorkoutToDatabase = (workout: Omit<FrontendWorkout, 'id' | 'created
     adjustment: exercise.adjustment,
     description: exercise.description,
     order_index: index,
+    // user_id will be set after workout creation if needed
   }))
 
   return { workout: workoutData, exercises: exercisesData }
@@ -163,7 +167,7 @@ export const databaseService = {
       if (exercisesError) throw exercisesError
 
       // Group exercises by workout_id
-      const exercisesByWorkout = exercises?.reduce((acc, exercise) => {
+      const exercisesByWorkout = exercises?.reduce((acc: Record<string, Exercise[]>, exercise: Exercise) => {
         if (!acc[exercise.workout_id]) {
           acc[exercise.workout_id] = []
         }
@@ -172,7 +176,7 @@ export const databaseService = {
       }, {} as Record<string, Exercise[]>) || {}
 
       // Convert to frontend format
-      return workouts.map(workout => 
+      return workouts.map((workout: Workout) => 
         convertWorkoutToFrontend(workout, exercisesByWorkout[workout.id] || [])
       )
     } catch (error) {
@@ -211,7 +215,7 @@ export const databaseService = {
   // Create new workout with exercises
   async createWorkout(workoutData: Omit<FrontendWorkout, 'id' | 'createdAt' | 'completions'>): Promise<FrontendWorkout> {
     try {
-      const { workout, exercises } = convertWorkoutToDatabase(workoutData)
+      const { workout, exercises } = await convertWorkoutToDatabase(workoutData)
 
       // Insert workout first
       const { data: newWorkout, error: workoutError } = await supabase
@@ -224,9 +228,11 @@ export const databaseService = {
       if (!newWorkout) throw new Error('Failed to create workout')
 
       // Insert exercises with workout_id
+      const user_id = workout.user_id || DEFAULT_USER_ID
       const exercisesWithWorkoutId = exercises.map(exercise => ({
         ...exercise,
-        workout_id: newWorkout.id
+        workout_id: newWorkout.id,
+        user_id,
       }))
 
       const { error: exercisesError } = await supabase
@@ -254,6 +260,7 @@ export const databaseService = {
       if (workoutData.workoutType) workoutUpdate.workout_type = workoutData.workoutType
       if (workoutData.categories) (workoutUpdate as any).categories = workoutData.categories
       if (workoutData.lastCompleted) workoutUpdate.last_completed = workoutData.lastCompleted
+      workoutUpdate.user_id = await getCurrentUserId()
 
       const { error: workoutError } = await supabase
         .from('workouts')
@@ -264,16 +271,28 @@ export const databaseService = {
 
       // Update exercises if provided
       if (workoutData.exercises) {
+        // Filter out invalid exercises
+        const validExercises = workoutData.exercises.filter(
+          (exercise) =>
+            exercise.name &&
+            typeof exercise.sets === 'number' &&
+            typeof exercise.reps === 'string' &&
+            exercise.reps.length > 0
+        )
         // Delete existing exercises
         const { error: deleteError } = await supabase
           .from('exercises')
           .delete()
           .eq('workout_id', id)
 
-        if (deleteError) throw deleteError
+        if (deleteError) {
+          console.error('Error deleting exercises:', deleteError?.message || deleteError)
+          throw deleteError
+        }
 
         // Insert new exercises
-        const exercisesData: ExerciseInsert[] = workoutData.exercises.map((exercise, index) => ({
+        const user_id = workoutUpdate.user_id || DEFAULT_USER_ID
+        const exercisesData: ExerciseInsert[] = validExercises.map((exercise, index) => ({
           workout_id: id,
           name: exercise.name,
           sets: exercise.sets,
@@ -284,20 +303,32 @@ export const databaseService = {
           adjustment: exercise.adjustment,
           description: exercise.description,
           order_index: index,
+          user_id,
         }))
+
+        // Log the data being sent for debugging
+        console.log('Inserting exercises:', exercisesData)
 
         const { error: exercisesError } = await supabase
           .from('exercises')
           .insert(exercisesData)
 
-        if (exercisesError) throw exercisesError
+        if (exercisesError) {
+          console.error('Error inserting exercises:', exercisesError?.message || exercisesError)
+          throw exercisesError
+        }
       }
 
       // Return updated workout
       return await this.getWorkout(id) as FrontendWorkout
     } catch (error) {
-      console.error('Error updating workout:', error)
-      throw error
+      if (error instanceof Error) {
+        console.error('Error updating workout:', error.message)
+        throw error
+      } else {
+        console.error('Error updating workout:', String(error))
+        throw error
+      }
     }
   },
 
@@ -510,16 +541,28 @@ export const databaseService = {
   // Update exercises for a workout
   async updateWorkoutExercises(workoutId: string, exercises: FrontendExercise[]): Promise<void> {
     try {
+      // Filter out invalid exercises
+      const validExercises = exercises.filter(
+        (exercise) =>
+          exercise.name &&
+          typeof exercise.sets === 'number' &&
+          typeof exercise.reps === 'string' &&
+          exercise.reps.length > 0
+      )
       // Delete existing exercises
       const { error: deleteError } = await supabase
         .from('exercises')
         .delete()
         .eq('workout_id', workoutId)
 
-      if (deleteError) throw deleteError
+      if (deleteError) {
+        console.error('Error deleting exercises:', deleteError?.message || deleteError)
+        throw deleteError
+      }
 
       // Insert new exercises
-      const exercisesData: ExerciseInsert[] = exercises.map((exercise, index) => ({
+      const user_id = await getCurrentUserId()
+      const exercisesData: ExerciseInsert[] = validExercises.map((exercise, index) => ({
         workout_id: workoutId,
         name: exercise.name,
         sets: exercise.sets,
@@ -530,16 +573,28 @@ export const databaseService = {
         adjustment: exercise.adjustment,
         description: exercise.description,
         order_index: index,
+        user_id,
       }))
+
+      // Log the data being sent for debugging
+      console.log('Inserting exercises:', exercisesData)
 
       const { error: exercisesError } = await supabase
         .from('exercises')
         .insert(exercisesData)
 
-      if (exercisesError) throw exercisesError
+      if (exercisesError) {
+        console.error('Error inserting exercises:', exercisesError?.message || exercisesError)
+        throw exercisesError
+      }
     } catch (error) {
-      console.error('Error updating workout exercises:', error)
-      throw error
+      if (error instanceof Error) {
+        console.error('Error updating workout exercises:', error.message)
+        throw error
+      } else {
+        console.error('Error updating workout exercises:', String(error))
+        throw error
+      }
     }
   }
 } 
