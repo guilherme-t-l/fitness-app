@@ -148,11 +148,13 @@ export const databaseService = {
   // Get all workouts with exercises
   async getWorkouts(): Promise<FrontendWorkout[]> {
     try {
-      // Get all workouts
+      const user_id = await getCurrentUserId();
+      // Get only workouts for the current user (or default user if guest)
       const { data: workouts, error: workoutsError } = await supabase
         .from('workouts')
         .select('*')
-        .order('created_at', { ascending: false })
+        .eq('user_id', user_id)
+        .order('created_at', { ascending: false });
 
       if (workoutsError) throw workoutsError
 
