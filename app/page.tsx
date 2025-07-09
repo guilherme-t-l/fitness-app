@@ -1,7 +1,11 @@
+"use client"
 import Link from 'next/link'
 import Image from 'next/image'
+import { useState } from 'react';
+import { AuthModal } from '@/components/ui/AuthModal';
 
 export default function HomePage() {
+  const [authOpen, setAuthOpen] = useState(false);
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-purple-950 text-white relative overflow-hidden">
       {/* Animated background blobs */}
@@ -20,11 +24,11 @@ export default function HomePage() {
         {/* Actions */}
         <div className="flex flex-col md:flex-row gap-4 w-full max-w-md mx-auto mt-6">
           <button
-            disabled
-            className="flex-1 min-h-[56px] flex flex-col items-center justify-center rounded-xl text-lg font-semibold shadow-lg border border-gray-600 bg-gray-700/70 text-gray-300 cursor-not-allowed text-center transition-all"
+            onClick={() => setAuthOpen(true)}
+            className="flex-1 min-h-[56px] flex flex-col items-center justify-center rounded-xl text-lg font-semibold shadow-lg border border-cyan-500/40 bg-gradient-to-r from-cyan-900 to-cyan-700 text-cyan-200 hover:from-cyan-800 hover:to-cyan-600 hover:scale-105 transition-all"
           >
             <span className="font-semibold text-lg">Login / Sign Up</span>
-            <span className="text-sm text-gray-400 mt-1">(coming soon)</span>
+            <span className="text-sm text-cyan-300 mt-1">(secure your data)</span>
           </button>
           <Link
             href="/workouts"
@@ -32,6 +36,7 @@ export default function HomePage() {
           >
             Use as Guest
           </Link>
+          <AuthModal open={authOpen} onOpenChange={setAuthOpen} />
         </div>
       </div>
     </main>

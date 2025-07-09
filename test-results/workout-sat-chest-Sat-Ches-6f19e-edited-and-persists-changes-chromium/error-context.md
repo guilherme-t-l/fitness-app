@@ -1,0 +1,123 @@
+# Page snapshot
+
+```yaml
+- navigation:
+  - link "FitFlow Logo FitFlow":
+    - /url: /
+    - img "FitFlow Logo"
+    - text: FitFlow
+  - link "Workouts":
+    - /url: /workouts
+  - link "Progress":
+    - /url: /progress
+  - text: Community Login/Profile
+- main:
+  - heading "My Workouts" [level=1]
+  - paragraph: Create, track, and complete your fitness routines
+  - img
+  - textbox "Search workouts..."
+  - button "Create Workout":
+    - img
+    - text: Create Workout
+  - text: "Sun: Legs + Abs Hypertrophy Legs Abs Secondary legs, secondary abs"
+  - img
+  - text: 35 min
+  - img
+  - text: 9 exercises
+  - img
+  - text: "3 completed Last: 7/4/2025"
+  - button "Start":
+    - img
+    - text: Start
+  - button:
+    - img
+  - button:
+    - img
+  - text: "Sat: Chest + Triceps + Shoulders Hypertrophy Chest Triceps +1 more Standard chest, secondary triceps, secondary shoulders"
+  - img
+  - text: 5 min
+  - img
+  - text: 0 exercises
+  - img
+  - text: "3 completed Last: 7/5/2025"
+  - button "Start":
+    - img
+    - text: Start
+  - button:
+    - img
+  - button:
+    - img
+  - text: "Mon: Back + Biceps Hypertrophy Back Biceps Focused on back, secondary focus on biceps"
+  - img
+  - text: 34 min
+  - img
+  - text: 6 exercises
+  - img
+  - text: "1 completed Last: 7/7/2025"
+  - button "Start":
+    - img
+    - text: Start
+  - button:
+    - img
+  - button:
+    - img
+  - text: "Tue: Chest + Triceps Hypertrophy Chest Triceps Standard chest, main focus on triceps"
+  - img
+  - text: 37 min
+  - img
+  - text: 5 exercises
+  - img
+  - text: "1 completed Last: 7/8/2025"
+  - button "Start":
+    - img
+    - text: Start
+  - button:
+    - img
+  - button:
+    - img
+  - text: "Wed: Abs + Shoulders Hypertrophy Abs Shoulders Main focus on Abs, Main focus on Shoulders"
+  - img
+  - text: 33 min
+  - img
+  - text: 5 exercises
+  - img
+  - text: 5 completed
+  - button "Start":
+    - img
+    - text: Start
+  - button:
+    - img
+  - button:
+    - img
+  - text: "Thu: Legs Hypertrophy Legs Full focus on legs"
+  - img
+  - text: 42 min
+  - img
+  - text: 8 exercises
+  - img
+  - text: "8 completed Last: 1/14/2024"
+  - button "Start":
+    - img
+    - text: Start
+  - button:
+    - img
+  - button:
+    - img
+  - text: "Fri: Back + Biceps Hypertrophy Back Biceps Focused on biceps, secondary focus on back"
+  - img
+  - text: 32 min
+  - img
+  - text: 6 exercises
+  - img
+  - text: "12 completed Last: 1/13/2024"
+  - button "Start":
+    - img
+    - text: Start
+  - button:
+    - img
+  - button:
+    - img
+- button "Open Next.js Dev Tools":
+  - img
+- alert
+```
