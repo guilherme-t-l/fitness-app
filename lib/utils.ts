@@ -1,5 +1,8 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { supabase } from "./supabase"
+
+export const DEFAULT_USER_ID = "00000000-0000-0000-0000-000000000001"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -30,4 +33,9 @@ export function calculateWorkoutDuration(exercises: { sets: number; restTime?: s
     totalSeconds += sets * 40 + sets * rest;
   }
   return Math.round(totalSeconds / 60);
+}
+
+export async function getCurrentUserId(): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession()
+  return session?.user?.id ?? DEFAULT_USER_ID
 }

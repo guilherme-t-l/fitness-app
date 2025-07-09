@@ -5,6 +5,7 @@
 
 import { supabase } from './supabase'
 import type { Database } from './supabase'
+import { getCurrentUserId, DEFAULT_USER_ID } from './utils'
 
 type Workout = Database['public']['Tables']['workouts']['Row']
 type WorkoutInsert = Database['public']['Tables']['workouts']['Insert']
@@ -109,10 +110,11 @@ const convertWorkoutToFrontend = (workout: Workout, exercises: Exercise[]): Fron
 }
 
 // Convert frontend workout to database format
-const convertWorkoutToDatabase = (workout: Omit<FrontendWorkout, 'id' | 'createdAt' | 'completions'>): {
+const convertWorkoutToDatabase = async (workout: Omit<FrontendWorkout, 'id' | 'createdAt' | 'completions'>): Promise<{
   workout: WorkoutInsert
   exercises: ExerciseInsert[]
-} => {
+}> => {
+  const user_id = await getCurrentUserId()
   const workoutData = {
     name: workout.name,
     description: workout.description,
@@ -121,7 +123,7 @@ const convertWorkoutToDatabase = (workout: Omit<FrontendWorkout, 'id' | 'created
     categories: workout.categories,
     last_completed: workout.lastCompleted,
     completions: 0,
-    user_id: '00000000-0000-0000-0000-000000000001', // Always set guest user_id
+    user_id,
   } as unknown as WorkoutInsert
 
   const exercisesData: ExerciseInsert[] = workout.exercises.map((exercise, index) => ({
@@ -135,6 +137,7 @@ const convertWorkoutToDatabase = (workout: Omit<FrontendWorkout, 'id' | 'created
     adjustment: exercise.adjustment,
     description: exercise.description,
     order_index: index,
+    // user_id will be set after workout creation if needed
   }))
 
   return { workout: workoutData, exercises: exercisesData }
@@ -212,7 +215,7 @@ export const databaseService = {
   // Create new workout with exercises
   async createWorkout(workoutData: Omit<FrontendWorkout, 'id' | 'createdAt' | 'completions'>): Promise<FrontendWorkout> {
     try {
-      const { workout, exercises } = convertWorkoutToDatabase(workoutData)
+      const { workout, exercises } = await convertWorkoutToDatabase(workoutData)
 
       // Insert workout first
       const { data: newWorkout, error: workoutError } = await supabase
@@ -225,10 +228,11 @@ export const databaseService = {
       if (!newWorkout) throw new Error('Failed to create workout')
 
       // Insert exercises with workout_id
+      const user_id = workout.user_id || DEFAULT_USER_ID
       const exercisesWithWorkoutId = exercises.map(exercise => ({
         ...exercise,
         workout_id: newWorkout.id,
-        user_id: '00000000-0000-0000-0000-000000000001',
+        user_id,
       }))
 
       const { error: exercisesError } = await supabase
@@ -256,7 +260,7 @@ export const databaseService = {
       if (workoutData.workoutType) workoutUpdate.workout_type = workoutData.workoutType
       if (workoutData.categories) (workoutUpdate as any).categories = workoutData.categories
       if (workoutData.lastCompleted) workoutUpdate.last_completed = workoutData.lastCompleted
-      workoutUpdate.user_id = '00000000-0000-0000-0000-000000000001' // Always set guest user_id
+      workoutUpdate.user_id = await getCurrentUserId()
 
       const { error: workoutError } = await supabase
         .from('workouts')
@@ -287,6 +291,7 @@ export const databaseService = {
         }
 
         // Insert new exercises
+        const user_id = workoutUpdate.user_id || DEFAULT_USER_ID
         const exercisesData: ExerciseInsert[] = validExercises.map((exercise, index) => ({
           workout_id: id,
           name: exercise.name,
@@ -298,7 +303,7 @@ export const databaseService = {
           adjustment: exercise.adjustment,
           description: exercise.description,
           order_index: index,
-          user_id: '00000000-0000-0000-0000-000000000001',
+          user_id,
         }))
 
         // Log the data being sent for debugging
@@ -556,6 +561,7 @@ export const databaseService = {
       }
 
       // Insert new exercises
+      const user_id = await getCurrentUserId()
       const exercisesData: ExerciseInsert[] = validExercises.map((exercise, index) => ({
         workout_id: workoutId,
         name: exercise.name,
@@ -567,7 +573,7 @@ export const databaseService = {
         adjustment: exercise.adjustment,
         description: exercise.description,
         order_index: index,
-        user_id: '00000000-0000-0000-0000-000000000001',
+        user_id,
       }))
 
       // Log the data being sent for debugging
