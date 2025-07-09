@@ -1,11 +1,19 @@
 "use client"
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthModal } from '@/components/ui/AuthModal';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function HomePage() {
   const [authOpen, setAuthOpen] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('login') === '1') {
+      setAuthOpen(true);
+    }
+  }, [searchParams]);
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-purple-950 text-white relative overflow-hidden">
       {/* Animated background blobs */}
