@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_USER_ID } from '@/lib/utils';
+import { createStarterWorkoutsForUser } from '@/lib/database';
 
 interface AuthContextType {
   user: any | null;
@@ -21,15 +22,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       setIsGuest(!session?.user);
+      if (session?.user) {
+        // Check if user has any workouts
+        const { data: workouts, error } = await supabase
+          .from('workouts')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .limit(1);
+        if (!error && workouts && workouts.length === 0) {
+          await createStarterWorkoutsForUser(session.user.id);
+        }
+      }
     });
     // Initial load
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
       setIsGuest(!session?.user);
       setLoading(false);
+      if (session?.user) {
+        // Check if user has any workouts
+        const { data: workouts, error } = await supabase
+          .from('workouts')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .limit(1);
+        if (!error && workouts && workouts.length === 0) {
+          await createStarterWorkoutsForUser(session.user.id);
+        }
+      }
     });
     return () => {
       listener.subscription.unsubscribe();

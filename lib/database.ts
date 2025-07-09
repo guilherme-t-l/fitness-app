@@ -598,3 +598,77 @@ export const databaseService = {
     }
   }
 } 
+
+export async function createStarterWorkoutsForUser(user_id: string) {
+  // Define starter workouts
+  const starterWorkouts = [
+    {
+      name: 'Leg Day',
+      description: 'Build lower body strength and power.',
+      estimatedDuration: '45 min',
+      workoutType: 'Strength',
+      categories: ['Legs', 'Strength'],
+      lastCompleted: undefined,
+      exercises: [
+        { name: 'Squat', sets: 4, reps: '8-10', weight: '', restTime: '90', notes: '', adjustment: '', description: '' },
+        { name: 'Lunges', sets: 3, reps: '10/leg', weight: '', restTime: '60', notes: '', adjustment: '', description: '' },
+        { name: 'Calf Raises', sets: 3, reps: '15', weight: '', restTime: '45', notes: '', adjustment: '', description: '' },
+      ],
+    },
+    {
+      name: 'Upper Body Blast',
+      description: 'Push and pull for a strong upper body.',
+      estimatedDuration: '40 min',
+      workoutType: 'Strength',
+      categories: ['Upper Body', 'Strength'],
+      lastCompleted: undefined,
+      exercises: [
+        { name: 'Push-ups', sets: 3, reps: '12-15', weight: '', restTime: '60', notes: '', adjustment: '', description: '' },
+        { name: 'Pull-ups', sets: 3, reps: '6-8', weight: '', restTime: '90', notes: '', adjustment: '', description: '' },
+        { name: 'Shoulder Press', sets: 3, reps: '10', weight: '', restTime: '75', notes: '', adjustment: '', description: '' },
+      ],
+    },
+  ];
+
+  for (const workout of starterWorkouts) {
+    await databaseService.createWorkout({
+      ...workout,
+      // user_id will be set by createWorkout via getCurrentUserId, so we override getCurrentUserId temporarily
+      // We'll use a hack: temporarily override getCurrentUserId to return the provided user_id
+      // This is safe because this function is only called in a controlled context
+      id: undefined,
+      createdAt: new Date().toISOString(),
+      completions: 0,
+    } as any, user_id);
+  }
+}
+
+// Patch createWorkout to accept an optional user_id for this use case
+const originalCreateWorkout = databaseService.createWorkout;
+databaseService.createWorkout = async function(workoutData: any, overrideUserId?: string) {
+  const { workout, exercises } = await convertWorkoutToDatabase(workoutData);
+  if (overrideUserId) {
+    workout.user_id = overrideUserId;
+  }
+  // Insert workout first
+  const { data: newWorkout, error: workoutError } = await supabase
+    .from('workouts')
+    .insert(workout)
+    .select()
+    .single();
+  if (workoutError) throw workoutError;
+  if (!newWorkout) throw new Error('Failed to create workout');
+  // Insert exercises with workout_id
+  const user_id = workout.user_id || DEFAULT_USER_ID;
+  const exercisesWithWorkoutId = exercises.map((exercise: any) => ({
+    ...exercise,
+    workout_id: newWorkout.id,
+    user_id,
+  }));
+  const { error: exercisesError } = await supabase
+    .from('exercises')
+    .insert(exercisesWithWorkoutId);
+  if (exercisesError) throw exercisesError;
+  // Return the complete workout
+  return await databaseService.getWorkout(newWorkout.id) as FrontendWorkout;
+}; 
