@@ -39,7 +39,7 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-gray-900 border-cyan-700/40 text-white max-w-md w-full">
+      <DialogContent className="bg-gray-900 border-cyan-700/40 text-white max-w-md w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-cyan-400 text-2xl font-bold mb-2">
             {mode === 'login' ? 'Login to FitFlow' : 'Sign Up for FitFlow'}
@@ -52,8 +52,10 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
-            className="bg-gray-800 border-cyan-700/30 text-white"
+            className="bg-gray-800 border-cyan-700/30 text-white focus:ring-2 focus:ring-cyan-400"
             autoFocus
+            aria-label="Email address"
+            autoComplete="email"
           />
           <Input
             type="password"
@@ -61,23 +63,26 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
-            className="bg-gray-800 border-cyan-700/30 text-white"
+            className="bg-gray-800 border-cyan-700/30 text-white focus:ring-2 focus:ring-cyan-400"
+            aria-label="Password"
+            autoComplete="current-password"
           />
-          {error && <div className="text-red-400 text-sm">{error}</div>}
-          {success && <div className="text-green-400 text-sm">{success}</div>}
-          <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700" disabled={loading}>
+          {error && <div className="text-red-400 text-sm" role="alert">{error}</div>}
+          {success && <div className="text-green-400 text-sm" role="status">{success}</div>}
+          <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-400 min-h-[44px]" disabled={loading} aria-label={mode === 'login' ? 'Login' : 'Sign Up'}>
             {loading ? 'Loading...' : mode === 'login' ? 'Login' : 'Sign Up'}
           </Button>
         </form>
         <div className="text-center mt-4">
           <button
             type="button"
-            className="text-cyan-400 hover:underline text-sm"
+            className="text-cyan-400 hover:underline text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded min-h-[44px] px-2"
             onClick={() => {
               setMode(mode === 'login' ? 'signup' : 'login');
               setError(null);
               setSuccess(null);
             }}
+            aria-label={mode === 'login' ? 'Switch to Sign Up' : 'Switch to Login'}
           >
             {mode === 'login' ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
           </button>
