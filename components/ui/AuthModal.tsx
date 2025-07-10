@@ -39,8 +39,10 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
             <Button
               className="w-full bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 min-h-[44px]"
               onClick={() => {
-                router.push('/workouts');
                 onOpenChange(false);
+                setTimeout(() => {
+                  router.replace('/workouts');
+                }, 150); // Wait for modal to close
               }}
               variant="default"
             >
