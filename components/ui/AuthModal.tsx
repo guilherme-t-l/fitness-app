@@ -1,3 +1,4 @@
+"use client"
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog';
 import { Button } from './button';
@@ -6,13 +7,50 @@ import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 
 export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const { login, signup, loading } = useAuth();
+  const { login, signup, loading, isGuest, user, logout } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const router = useRouter();
+
+  // If already logged in, show special message
+  if (!isGuest && user) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="bg-gray-900 border-cyan-700/40 text-white max-w-md w-full max-h-[90vh] overflow-y-auto flex flex-col items-center justify-center gap-6">
+          <DialogHeader>
+            <DialogTitle className="text-cyan-400 text-2xl font-bold mb-2 text-center">
+              You are already logged in.
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 w-full">
+            <Button
+              className="w-full bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-400 min-h-[44px]"
+              onClick={async () => {
+                await logout();
+                onOpenChange(false);
+              }}
+              variant="outline"
+            >
+              Log out
+            </Button>
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 min-h-[44px]"
+              onClick={() => {
+                router.push('/workouts');
+                onOpenChange(false);
+              }}
+              variant="default"
+            >
+              Return to my account
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,13 +60,13 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
       const { error } = await login(email, password) as any;
       if (error) setError(error.message || 'Login failed');
       else {
-        onOpenChange(false);
-        // Refresh the route to update user context everywhere
-        if (router && typeof router.refresh === 'function') {
-          router.refresh();
-        } else {
-          window.location.reload();
+        // After login, redirect to /workouts if on root, else stay
+        if (typeof window !== 'undefined') {
+          if (window.location.pathname === '/') {
+            router.replace('/workouts');
+          }
         }
+        onOpenChange(false);
       }
     } else {
       const { error } = await signup(email, password) as any;
