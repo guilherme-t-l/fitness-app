@@ -4,10 +4,35 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react';
 import { AuthModal } from '@/components/ui/AuthModal';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function HomePage() {
   const [authOpen, setAuthOpen] = useState(false);
   const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Handle Supabase auth redirect tokens or errors in the URL hash
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash;
+    if (hash) {
+      const params = new URLSearchParams(hash.replace('#', ''));
+      const access_token = params.get('access_token');
+      const refresh_token = params.get('refresh_token');
+      const error = params.get('error');
+      const error_code = params.get('error_code');
+      const error_description = params.get('error_description');
+      if (access_token && refresh_token) {
+        supabase.auth.setSession({ access_token, refresh_token }).then(() => {
+          window.location.hash = '';
+          router.replace('/workouts');
+        });
+      } else if (error) {
+        // Redirect to /auth/callback with error details as query params
+        router.replace(`/auth/callback?error=${encodeURIComponent(error)}&error_code=${encodeURIComponent(error_code || '')}&error_description=${encodeURIComponent(error_description || '')}`);
+      }
+    }
+  }, [router]);
 
   useEffect(() => {
     if (searchParams.get('login') === '1') {
