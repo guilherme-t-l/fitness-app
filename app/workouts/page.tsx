@@ -26,7 +26,7 @@ type Workout = FrontendWorkout
 // - Consider splitting business logic from UI rendering for future scalability.
 
 export default function WorkoutsPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
   const { 
@@ -36,7 +36,7 @@ export default function WorkoutsPage() {
     createWorkout, 
     updateWorkout, 
     deleteWorkout
-  } = useWorkouts(user?.id)
+  } = useWorkouts(user?.id, !authLoading)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
@@ -108,7 +108,7 @@ export default function WorkoutsPage() {
   }
 
   // Show loading state
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
@@ -245,6 +245,7 @@ export default function WorkoutsPage() {
                   size="sm"
                   onClick={() => handleEditWorkout(workout)}
                   className="border-gray-600 text-gray-300 hover:text-green-400 hover:border-green-400 bg-transparent"
+                  aria-label="Edit workout"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
