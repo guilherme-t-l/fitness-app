@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { databaseService, type FrontendWorkout, type FrontendExercise } from '@/lib/database'
+import { getSupabaseErrorMessage } from '@/lib/supabaseError'
 
-export function useWorkouts(userId?: string) {
+/** Pass `enabled: false` until auth has finished loading so `userId` matches the session. */
+export function useWorkouts(userId?: string, enabled = true) {
   const [workouts, setWorkouts] = useState<FrontendWorkout[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -15,7 +17,7 @@ export function useWorkouts(userId?: string) {
       setWorkouts(data)
     } catch (err) {
       console.error('Error loading workouts:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load workouts')
+      setError(getSupabaseErrorMessage(err) || 'Failed to load workouts')
     } finally {
       setLoading(false)
     }
@@ -30,7 +32,7 @@ export function useWorkouts(userId?: string) {
       return newWorkout
     } catch (err) {
       console.error('Error creating workout:', err)
-      setError(err instanceof Error ? err.message : 'Failed to create workout')
+      setError(getSupabaseErrorMessage(err) || 'Failed to create workout')
       throw err
     }
   }, [])
@@ -44,7 +46,7 @@ export function useWorkouts(userId?: string) {
       return updatedWorkout
     } catch (err) {
       console.error('Error updating workout:', err)
-      setError(err instanceof Error ? err.message : 'Failed to update workout')
+      setError(getSupabaseErrorMessage(err) || 'Failed to update workout')
       throw err
     }
   }, [])
@@ -57,7 +59,7 @@ export function useWorkouts(userId?: string) {
       setWorkouts(prev => prev.filter(w => w.id !== id))
     } catch (err) {
       console.error('Error deleting workout:', err)
-      setError(err instanceof Error ? err.message : 'Failed to delete workout')
+      setError(getSupabaseErrorMessage(err) || 'Failed to delete workout')
       throw err
     }
   }, [])
@@ -78,7 +80,7 @@ export function useWorkouts(userId?: string) {
       ))
     } catch (err) {
       console.error('Error completing workout:', err)
-      setError(err instanceof Error ? err.message : 'Failed to complete workout')
+      setError(getSupabaseErrorMessage(err) || 'Failed to complete workout')
       throw err
     }
   }, [])
@@ -95,15 +97,16 @@ export function useWorkouts(userId?: string) {
       ))
     } catch (err) {
       console.error('Error updating workout exercises:', err)
-      setError(err instanceof Error ? err.message : 'Failed to update exercises')
+      setError(getSupabaseErrorMessage(err) || 'Failed to update exercises')
       throw err
     }
   }, [])
 
-  // Load workouts on mount or when userId changes
+  // Load when auth is ready and userId is stable; avoids racing the session.
   useEffect(() => {
+    if (!enabled) return
     loadWorkouts()
-  }, [loadWorkouts])
+  }, [loadWorkouts, enabled])
 
   return {
     workouts,

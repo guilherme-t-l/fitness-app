@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Sat: Chest + Triceps + Shoulders workout', () => {
+/** Seeds/guest workouts use names like "Lower Body Focus" in v0-fitness. */
+test.describe('Guest workout edit flow', () => {
   test('can be found, edited, and persists changes', async ({ page }) => {
     await page.goto('/workouts');
 
-    // Find the workout card by name
-    const workoutCard = page.getByText('Sat: Chest + Triceps + Shoulders', { exact: true });
+    const workoutName = 'Lower Body Focus';
+    const workoutCard = page.getByText(workoutName, { exact: true });
     await expect(workoutCard).toBeVisible();
 
-    // Find and click the edit button (pencil icon) on the card
-    const card = await workoutCard.locator('..').first();
-    const editButton = card.getByRole('button', { name: /edit/i });
+    const card = workoutCard.locator('xpath=ancestor::*[contains(@class,"card-glow")][1]');
+    const editButton = card.getByRole('button', { name: /edit workout/i });
     await editButton.click();
 
     // Wait for the edit dialog to appear
@@ -29,11 +29,10 @@ test.describe('Sat: Chest + Triceps + Shoulders workout', () => {
     // Wait for dialog to close
     await expect(dialog).toBeHidden();
 
-    // Reload and verify the change persists
     await page.reload();
-    const updatedCard = page.getByText('Sat: Chest + Triceps + Shoulders', { exact: true });
-    await expect(updatedCard).toBeVisible();
-    const updatedDescription = updatedCard.locator('..').getByText(newDescription);
-    await expect(updatedDescription).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My Workouts' })).toBeVisible();
+    const cardAfter = page.locator('.card-glow').filter({ hasText: workoutName });
+    await expect(cardAfter).toBeVisible({ timeout: 15_000 });
+    await expect(cardAfter.getByText(newDescription)).toBeVisible();
   });
 }); 

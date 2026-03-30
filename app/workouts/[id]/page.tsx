@@ -12,8 +12,8 @@ import { useAuth } from '@/components/AuthProvider'
 export default function WorkoutDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { user } = useAuth()
-  const { workouts, loading, error, completeWorkout, updateWorkoutExercises } = useWorkouts(user?.id)
+  const { user, loading: authLoading } = useAuth()
+  const { workouts, loading, error, completeWorkout, updateWorkoutExercises } = useWorkouts(user?.id, !authLoading)
   const [workout, setWorkout] = useState<FrontendWorkout | null>(null)
   const [notFound, setNotFound] = useState(false)
 
@@ -55,7 +55,7 @@ export default function WorkoutDetailPage() {
   }
 
   // Show loading state
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">

@@ -5,6 +5,7 @@
 
 import { supabase } from './supabase'
 import type { Database } from './supabase'
+import { getSupabaseErrorMessage } from './supabaseError'
 import { getCurrentUserId, DEFAULT_USER_ID } from './utils'
 
 type Workout = Database['public']['Tables']['workouts']['Row']
@@ -156,17 +157,19 @@ export const databaseService = {
         .eq('user_id', user_id)
         .order('created_at', { ascending: false });
 
-      if (workoutsError) throw workoutsError
+      if (workoutsError) throw new Error(getSupabaseErrorMessage(workoutsError))
 
-      if (!workouts) return []
+      if (!workouts || workouts.length === 0) return []
 
-      // Get exercises for all workouts
+      const workoutIds = workouts.map((w: Workout) => w.id)
+
       const { data: exercises, error: exercisesError } = await supabase
         .from('exercises')
         .select('*')
+        .in('workout_id', workoutIds)
         .order('order_index', { ascending: true })
 
-      if (exercisesError) throw exercisesError
+      if (exercisesError) throw new Error(getSupabaseErrorMessage(exercisesError))
 
       // Group exercises by workout_id
       const exercisesByWorkout = exercises?.reduce((acc: Record<string, Exercise[]>, exercise: Exercise) => {
@@ -229,12 +232,10 @@ export const databaseService = {
       if (workoutError) throw workoutError
       if (!newWorkout) throw new Error('Failed to create workout')
 
-      // Insert exercises with workout_id
-      const user_id = workout.user_id || DEFAULT_USER_ID
+      // Insert exercises with workout_id (exercises table has no user_id; scoped via workout)
       const exercisesWithWorkoutId = exercises.map(exercise => ({
         ...exercise,
         workout_id: newWorkout.id,
-        user_id,
       }))
 
       const { error: exercisesError } = await supabase
@@ -293,7 +294,6 @@ export const databaseService = {
         }
 
         // Insert new exercises
-        const user_id = workoutUpdate.user_id || DEFAULT_USER_ID
         const exercisesData: ExerciseInsert[] = validExercises.map((exercise, index) => ({
           workout_id: id,
           name: exercise.name,
@@ -305,7 +305,6 @@ export const databaseService = {
           adjustment: exercise.adjustment,
           description: exercise.description,
           order_index: index,
-          user_id,
         }))
 
         // Log the data being sent for debugging
@@ -395,13 +394,15 @@ export const databaseService = {
         throw new Error('No data returned from updateWorkoutCompletion')
       }
 
-      // Create workout history record
+      // Create workout history record (user_id required for RLS when not logged in)
+      const historyUserId = await getCurrentUserId()
       const { error: historyError } = await supabase
         .from('workout_history')
         .insert({
           workout_id: id,
           duration_minutes: durationMinutes,
-          notes: notes
+          notes: notes,
+          user_id: historyUserId,
         })
       if (historyError) {
         console.error('Error creating workout history:', historyError)
@@ -568,8 +569,6 @@ export const databaseService = {
         throw deleteError
       }
 
-      // Insert new exercises
-      const user_id = await getCurrentUserId()
       const exercisesData: ExerciseInsert[] = validExercises.map((exercise, index) => ({
         workout_id: workoutId,
         name: exercise.name,
@@ -581,7 +580,6 @@ export const databaseService = {
         adjustment: exercise.adjustment,
         description: exercise.description,
         order_index: index,
-        user_id,
       }))
 
       // Log the data being sent for debugging
@@ -663,12 +661,9 @@ databaseService.createWorkout = async function(workoutData: any, overrideUserId?
     .single();
   if (workoutError) throw workoutError;
   if (!newWorkout) throw new Error('Failed to create workout');
-  // Insert exercises with workout_id
-  const user_id = workout.user_id || DEFAULT_USER_ID;
   const exercisesWithWorkoutId = exercises.map((exercise: any) => ({
     ...exercise,
     workout_id: newWorkout.id,
-    user_id,
   }));
   const { error: exercisesError } = await supabase
     .from('exercises')
