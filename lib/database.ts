@@ -6,6 +6,7 @@
 import { supabase } from './supabase'
 import type { Database } from './supabase'
 import { getSupabaseErrorMessage } from './supabaseError'
+import { runSerializedWorkoutExerciseWrite } from './workoutExerciseWriteQueue'
 import { getCurrentUserId, DEFAULT_USER_ID } from './utils'
 
 type Workout = Database['public']['Tables']['workouts']['Row']
@@ -274,50 +275,46 @@ export const databaseService = {
 
       // Update exercises if provided
       if (workoutData.exercises) {
-        // Filter out invalid exercises
-        const validExercises = workoutData.exercises.filter(
-          (exercise) =>
-            exercise.name &&
-            typeof exercise.sets === 'number' &&
-            typeof exercise.reps === 'string' &&
-            exercise.reps.length > 0
-        )
-        // Delete existing exercises
-        const { error: deleteError } = await supabase
-          .from('exercises')
-          .delete()
-          .eq('workout_id', id)
+        await runSerializedWorkoutExerciseWrite(id, async () => {
+          const validExercises = workoutData.exercises!.filter(
+            (exercise) =>
+              exercise.name &&
+              typeof exercise.sets === 'number' &&
+              typeof exercise.reps === 'string' &&
+              exercise.reps.length > 0
+          )
+          const { error: deleteError } = await supabase
+            .from('exercises')
+            .delete()
+            .eq('workout_id', id)
 
-        if (deleteError) {
-          console.error('Error deleting exercises:', deleteError?.message || deleteError)
-          throw deleteError
-        }
+          if (deleteError) {
+            console.error('Error deleting exercises:', deleteError?.message || deleteError)
+            throw deleteError
+          }
 
-        // Insert new exercises
-        const exercisesData: ExerciseInsert[] = validExercises.map((exercise, index) => ({
-          workout_id: id,
-          name: exercise.name,
-          sets: exercise.sets,
-          reps: exercise.reps,
-          weight: exercise.weight,
-          rest_time: exercise.restTime,
-          notes: exercise.notes,
-          adjustment: exercise.adjustment,
-          description: exercise.description,
-          order_index: index,
-        }))
+          const exercisesData: ExerciseInsert[] = validExercises.map((exercise, index) => ({
+            workout_id: id,
+            name: exercise.name,
+            sets: exercise.sets,
+            reps: exercise.reps,
+            weight: exercise.weight,
+            rest_time: exercise.restTime,
+            notes: exercise.notes,
+            adjustment: exercise.adjustment,
+            description: exercise.description,
+            order_index: index,
+          }))
 
-        // Log the data being sent for debugging
-        console.log('Inserting exercises:', exercisesData)
+          const { error: exercisesError } = await supabase
+            .from('exercises')
+            .insert(exercisesData)
 
-        const { error: exercisesError } = await supabase
-          .from('exercises')
-          .insert(exercisesData)
-
-        if (exercisesError) {
-          console.error('Error inserting exercises:', exercisesError?.message || exercisesError)
-          throw exercisesError
-        }
+          if (exercisesError) {
+            console.error('Error inserting exercises:', exercisesError?.message || exercisesError)
+            throw exercisesError
+          }
+        })
       }
 
       // Return updated workout
@@ -549,59 +546,55 @@ export const databaseService = {
 
   // Update exercises for a workout
   async updateWorkoutExercises(workoutId: string, exercises: FrontendExercise[]): Promise<void> {
-    try {
-      // Filter out invalid exercises
-      const validExercises = exercises.filter(
-        (exercise) =>
-          exercise.name &&
-          typeof exercise.sets === 'number' &&
-          typeof exercise.reps === 'string' &&
-          exercise.reps.length > 0
-      )
-      // Delete existing exercises
-      const { error: deleteError } = await supabase
-        .from('exercises')
-        .delete()
-        .eq('workout_id', workoutId)
+    return runSerializedWorkoutExerciseWrite(workoutId, async () => {
+      try {
+        const validExercises = exercises.filter(
+          (exercise) =>
+            exercise.name &&
+            typeof exercise.sets === 'number' &&
+            typeof exercise.reps === 'string' &&
+            exercise.reps.length > 0
+        )
+        const { error: deleteError } = await supabase
+          .from('exercises')
+          .delete()
+          .eq('workout_id', workoutId)
 
-      if (deleteError) {
-        console.error('Error deleting exercises:', deleteError?.message || deleteError)
-        throw deleteError
-      }
+        if (deleteError) {
+          console.error('Error deleting exercises:', deleteError?.message || deleteError)
+          throw deleteError
+        }
 
-      const exercisesData: ExerciseInsert[] = validExercises.map((exercise, index) => ({
-        workout_id: workoutId,
-        name: exercise.name,
-        sets: exercise.sets,
-        reps: exercise.reps,
-        weight: exercise.weight,
-        rest_time: exercise.restTime,
-        notes: exercise.notes,
-        adjustment: exercise.adjustment,
-        description: exercise.description,
-        order_index: index,
-      }))
+        const exercisesData: ExerciseInsert[] = validExercises.map((exercise, index) => ({
+          workout_id: workoutId,
+          name: exercise.name,
+          sets: exercise.sets,
+          reps: exercise.reps,
+          weight: exercise.weight,
+          rest_time: exercise.restTime,
+          notes: exercise.notes,
+          adjustment: exercise.adjustment,
+          description: exercise.description,
+          order_index: index,
+        }))
 
-      // Log the data being sent for debugging
-      console.log('Inserting exercises:', exercisesData)
+        const { error: exercisesError } = await supabase
+          .from('exercises')
+          .insert(exercisesData)
 
-      const { error: exercisesError } = await supabase
-        .from('exercises')
-        .insert(exercisesData)
-
-      if (exercisesError) {
-        console.error('Error inserting exercises:', exercisesError?.message || exercisesError)
-        throw exercisesError
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error('Error updating workout exercises:', error.message)
-        throw error
-      } else {
+        if (exercisesError) {
+          console.error('Error inserting exercises:', exercisesError?.message || exercisesError)
+          throw exercisesError
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error('Error updating workout exercises:', error.message)
+          throw error
+        }
         console.error('Error updating workout exercises:', String(error))
         throw error
       }
-    }
+    })
   }
 } 
 

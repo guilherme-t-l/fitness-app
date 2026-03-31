@@ -10,9 +10,8 @@ import { CheckCircle2, Circle, Edit2, X, Clock, ArrowLeft, Check } from "lucide-
 import type { SetStateAction } from "react"
 import { useTimer, useRestTimer } from "@/hooks/useTimer"
 import { useAutoSave } from "@/hooks/useAutoSave"
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { useRouter } from "next/navigation"
-import { databaseService } from "@/lib/database"
 import { useToast } from "@/hooks/use-toast"
 
 interface Exercise {
@@ -39,9 +38,9 @@ interface Workout {
 
 interface WorkoutSessionProps {
   workout: Workout
-  onComplete: () => void
+  onComplete: (opts: { durationMinutes: number; notes: string }) => void | Promise<void>
   onExit: () => void
-  onSaveChanges: (workoutId: string, updatedExercises: Exercise[]) => void
+  onSaveChanges: (workoutId: string, updatedExercises: Exercise[]) => void | Promise<void>
 }
 
 interface ExerciseState extends Exercise {
@@ -122,7 +121,7 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
     )
   }
 
-  const saveExerciseImmediately = (exerciseId: string) => {
+  const saveExerciseImmediately = async (exerciseId: string) => {
     const updatedExercises: Exercise[] = exercises.map((ex: ExerciseState) => ({
       id: ex.id,
       name: ex.actualName || ex.name,
@@ -135,7 +134,16 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
       description: ex.description,
     }))
 
-    onSaveChanges(workout.id, updatedExercises)
+    try {
+      await Promise.resolve(onSaveChanges(workout.id, updatedExercises))
+    } catch {
+      toast({
+        title: "Could not save exercise",
+        description: "Check your connection and try again.",
+        variant: "destructive",
+      })
+      return
+    }
 
     // Show visual confirmation
     setSavedChanges((prev: Set<string>) => new Set(prev).add(exerciseId))
@@ -159,7 +167,7 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
 
     // Set new timeout for auto-save
     const newTimeout = setTimeout(() => {
-      saveExerciseImmediately(exerciseId)
+      void saveExerciseImmediately(exerciseId)
       setSaveTimeouts((prev: Map<string, NodeJS.Timeout>) => {
         const newMap = new Map(prev)
         newMap.delete(exerciseId)
@@ -173,7 +181,7 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   const completedExercises = exercises.filter((ex: ExerciseState) => ex.completed).length
   const progressPercentage = (completedExercises / exercises.length) * 100
 
-  const saveChangesToWorkout = () => {
+  const saveChangesToWorkout = async () => {
     const updatedExercises: Exercise[] = exercises.map((ex: ExerciseState) => ({
       id: ex.id,
       name: ex.actualName || ex.name,
@@ -186,32 +194,19 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
       description: ex.description,
     }))
 
-    onSaveChanges(workout.id, updatedExercises)
+    await Promise.resolve(onSaveChanges(workout.id, updatedExercises))
   }
 
   const handleCompleteWithConfirm = async () => {
     setCompleting(true)
     try {
-      saveChangesToWorkout()
-      
-      // Calculate workout duration
+      await saveChangesToWorkout()
+
       const durationMinutes = Math.floor((currentTime - startTime) / 1000 / 60)
-      
-      // Prepare completion data
-      const exercisesData = exercises.map((ex) => ({
-        name: ex.actualName || ex.name,
-        sets: ex.sets,
-        reps: ex.actualReps || ex.reps,
-        weight: ex.actualWeight || ex.weight,
-        restTime: ex.restTime,
-        notes: ex.notes,
-        adjustment: ex.adjustment,
-        description: ex.description,
-      }))
-      
-      // Update workout completion with duration tracking
-      await databaseService.updateWorkoutCompletion(workout.id, durationMinutes, `Completed ${exercisesData.length} exercises`)
-      
+      const notes = `Completed ${exercises.length} exercises`
+
+      await Promise.resolve(onComplete({ durationMinutes, notes }))
+
       setShowConfirm(false)
       setCompleting(false)
       toast({
@@ -279,13 +274,14 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
               <div className="border-t border-gray-800 w-full" />
               <AlertDialogFooter className="w-full flex flex-row gap-4 justify-center mt-2">
                 <AlertDialogCancel className="text-gray-400 border-gray-700 px-6 py-2 rounded-lg font-medium bg-gray-900/70 hover:bg-gray-800 transition">Cancel</AlertDialogCancel>
-                <AlertDialogAction
+                <Button
+                  type="button"
                   className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white font-bold px-8 py-2 rounded-lg shadow-lg focus:ring-2 focus:ring-cyan-400 focus:outline-none transition-all primary-glow"
-                  onClick={handleCompleteWithConfirm}
+                  onClick={() => void handleCompleteWithConfirm()}
                   disabled={completing}
                 >
                   {completing ? "Saving..." : "Yes, Complete"}
-                </AlertDialogAction>
+                </Button>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -344,8 +340,7 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          // Save changes immediately
-                          saveExerciseImmediately(exercise.id)
+                          void saveExerciseImmediately(exercise.id)
                           setEditingExercise(null)
                         }}
                         className="text-green-400 hover:text-green-300 hover:bg-green-400/10"

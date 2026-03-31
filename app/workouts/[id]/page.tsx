@@ -31,10 +31,13 @@ export default function WorkoutDetailPage() {
     }
   }, [workoutId, workouts, loading])
 
-  const handleCompleteWorkout = async () => {
+  const handleCompleteWorkout = async (opts: { durationMinutes: number; notes: string }) => {
     if (workout) {
       try {
-        await completeWorkout(workout.id)
+        await completeWorkout(workout.id, {
+          durationMinutes: opts.durationMinutes,
+          notes: opts.notes,
+        })
         router.push('/workouts')
       } catch (error) {
         console.error('Failed to complete workout:', error)
@@ -47,11 +50,7 @@ export default function WorkoutDetailPage() {
   }
 
   const handleSaveChanges = async (workoutId: string, updatedExercises: any[]) => {
-    try {
-      await updateWorkoutExercises(workoutId, updatedExercises)
-    } catch (error) {
-      console.error('Failed to save workout changes:', error)
-    }
+    await updateWorkoutExercises(workoutId, updatedExercises)
   }
 
   // Show loading state
