@@ -227,8 +227,8 @@ workout_history  1 ──* exercise_performance
 | Sets by muscle group | Bar chart (muscle on X, sets on Y); Week/Month toggle (calendar week vs last 30 days) |
 | Sessions by week | Line chart of sessions per week over the last 5 weeks |
 | Getting stronger | Up to 5 exercises from `exercise_performance`; last weight×reps and ↑/↓/—/New vs prior session |
-| Focus | Top categories from `get_category_breakdown` (shown only when data exists; before Recent sessions) |
 | Recent sessions | Last 8 from `workout_history` (name, date, duration) |
+| Data scope | Guest uses shared guest UUID (may include demo seed); authenticated users query by `auth.uid()` / their `user_id` only |
 | Empty states | No completions → CTA to workouts; sessions without logged weight → note under Getting stronger |
 
 **Removed:** hardcoded weekly/monthly goal bars, milestone badges, monthly trend line chart.

@@ -13,7 +13,7 @@ import {
   Line,
 } from "recharts"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { type WorkoutStats, type CategoryBreakdown, type StrengthTrend, type WorkoutHistory } from "@/lib/database"
+import { type WorkoutStats, type StrengthTrend, type WorkoutHistory } from "@/lib/database"
 import { weightUnit } from "@/lib/utils"
 
 interface MuscleSetsPoint {
@@ -34,7 +34,6 @@ interface ProgressMetricsProps {
   monthlySessionsByWeek: WeekSessionsPoint[]
   strengthTrends: StrengthTrend[]
   recentSessions: WorkoutHistory[]
-  categoryBreakdown: CategoryBreakdown[]
   loading?: boolean
 }
 
@@ -76,14 +75,9 @@ export function ProgressMetrics({
   monthlySessionsByWeek,
   strengthTrends,
   recentSessions,
-  categoryBreakdown,
   loading = false,
 }: ProgressMetricsProps) {
   const [muscleRange, setMuscleRange] = useState<"week" | "month">("week")
-
-  const topCategories = categoryBreakdown
-    .filter((cat) => cat.completionCount > 0)
-    .slice(0, 5)
 
   const muscleSetsData = muscleRange === "week" ? weeklySetsByMuscle : monthlySetsByMuscle
 
@@ -275,31 +269,6 @@ export function ProgressMetrics({
           </ul>
         )}
       </section>
-
-      {/* Focus */}
-      {topCategories.length > 0 && (
-        <section className="space-y-4 border-t border-border/70 pt-10">
-          <h2 className="font-display text-2xl font-normal text-foreground">Focus</h2>
-          <ul className="divide-y divide-border/60">
-            {topCategories.map((category) => (
-              <li
-                key={category.category}
-                className="flex items-baseline justify-between py-3 gap-4"
-              >
-                <div>
-                  <p className="text-foreground text-sm font-medium">{category.category}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {category.workoutCount} routine{category.workoutCount !== 1 ? "s" : ""}
-                  </p>
-                </div>
-                <p className="text-sm text-muted-foreground tabular-nums shrink-0">
-                  {category.completionCount} done
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       {/* Recent sessions */}
       {recentSessions.length > 0 && (

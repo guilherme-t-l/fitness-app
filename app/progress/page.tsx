@@ -11,7 +11,6 @@ export default function ProgressPage() {
   const { user } = useAuth()
   const {
     stats,
-    categoryBreakdown,
     weeklySets,
     strengthTrends,
     recentSessions,
@@ -76,7 +75,6 @@ export default function ProgressPage() {
           monthlySessionsByWeek={monthlySessionsByWeek}
           strengthTrends={strengthTrends}
           recentSessions={recentSessions}
-          categoryBreakdown={categoryBreakdown}
         />
       )}
     </div>
