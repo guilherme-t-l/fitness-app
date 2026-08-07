@@ -137,23 +137,27 @@ export default function WorkoutsPage() {
               New workout
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>New workout</DialogTitle>
-              <DialogDescription>Add exercises, sets, and details.</DialogDescription>
-            </DialogHeader>
-            <CreateWorkoutForm onSubmit={handleCreateWorkout} />
+          <DialogContent className="max-w-3xl">
+            <div className="max-h-[calc(100dvh-5rem)] space-y-4 overflow-y-auto pr-1">
+              <DialogHeader className="pr-6">
+                <DialogTitle>New workout</DialogTitle>
+                <DialogDescription>Add exercises, sets, and details.</DialogDescription>
+              </DialogHeader>
+              <CreateWorkoutForm onSubmit={handleCreateWorkout} />
+            </div>
           </DialogContent>
         </Dialog>
       </div>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit workout</DialogTitle>
-            <DialogDescription>Refine this routine.</DialogDescription>
-          </DialogHeader>
-          {editingWorkout && <EditWorkoutForm workout={editingWorkout} onSubmit={handleUpdateWorkout} />}
+        <DialogContent className="max-w-3xl">
+          <div className="max-h-[calc(100dvh-5rem)] space-y-4 overflow-y-auto pr-1">
+            <DialogHeader className="pr-6">
+              <DialogTitle>Edit workout</DialogTitle>
+              <DialogDescription>Refine this routine.</DialogDescription>
+            </DialogHeader>
+            {editingWorkout && <EditWorkoutForm workout={editingWorkout} onSubmit={handleUpdateWorkout} />}
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -195,11 +199,11 @@ export default function WorkoutsPage() {
                   )}
                   <p className="text-xs text-muted-foreground/70 pt-1">{historyLine}</p>
                 </div>
-                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                <div className="flex w-full sm:w-auto items-center gap-1 sm:gap-2 shrink-0">
                   <Button
                     onClick={() => handleStartWorkout(workout)}
                     size="sm"
-                    className="min-h-[40px]"
+                    className="min-h-[40px] flex-1 sm:flex-none px-6 sm:px-3"
                   >
                     <Play className="h-3.5 w-3.5 mr-1.5" />
                     Start
