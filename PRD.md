@@ -122,7 +122,19 @@ There are **no** Next.js API routes or server actions for domain data. All reads
 
 #### `exercise_performance`
 
-Schema exists (sets/reps/weight per history row). **Not written by the current app.**
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID (PK) | |
+| `workout_history_id` | UUID (FK) | ON DELETE CASCADE |
+| `exercise_id` | UUID (FK) | |
+| `exercise_name` | VARCHAR(255) | Snapshot at finish |
+| `sets_completed` | INTEGER | |
+| `reps_performed` | VARCHAR(50) | Optional |
+| `weight_used` | VARCHAR(50) | Optional string (e.g. `"70kg"`) |
+| `notes` | TEXT | Optional |
+| `created_at` | TIMESTAMPTZ | |
+
+Written on session finish; read by Progress for strength trends and weekly sets.
 
 #### `categories`
 
@@ -141,7 +153,7 @@ Seeded defaults include body-part style labels (Upper Body, Legs, Chest, etc.).
 ```
 workouts  1 ──* exercises
 workouts  1 ──* workout_history
-workout_history  1 ──* exercise_performance   (schema only; unused in app)
+workout_history  1 ──* exercise_performance
 ```
 
 ### 6.3 RPC Functions (used / present)
@@ -211,13 +223,15 @@ workout_history  1 ──* exercise_performance   (schema only; unused in app)
 
 | Requirement | Detail |
 |-------------|--------|
-| Summary metrics | Streak, total completions, this week, this month (`ProgressMetrics`) |
-| Goals | Hardcoded weekly **6** / monthly **24** |
-| Top categories | From `get_category_breakdown` |
-| Achievements UI | Threshold badges (e.g. First Workout, Week Warrior, Consistency King) — client-side only |
-| Weekly activity | Bar chart from real `workout_history` (last 7 days) |
-| Monthly trend | Line chart — **placeholder / random data today** (not real history) |
-| History list | History is fetched (limit 20) for weekly derivation; **no dedicated history list UI** |
+| This week hero | Session count for the current week + soft row (this month, lifetime, weekly sets, streak) |
+| Sets by muscle group | Bar chart (muscle on X, sets on Y); Week/Month toggle (calendar week vs last 30 days) |
+| Sessions by week | Line chart of sessions per week over the last 5 weeks |
+| Getting stronger | Up to 5 exercises from `exercise_performance`; last weight×reps and ↑/↓/—/New vs prior session |
+| Focus | Top categories from `get_category_breakdown` (shown only when data exists; before Recent sessions) |
+| Recent sessions | Last 8 from `workout_history` (name, date, duration) |
+| Empty states | No completions → CTA to workouts; sessions without logged weight → note under Getting stronger |
+
+**Removed:** hardcoded weekly/monthly goal bars, milestone badges, monthly trend line chart.
 
 ### 7.5 Profile (`/profile`)
 
@@ -271,7 +285,7 @@ React page / component
 | Hook | Responsibility |
 |------|----------------|
 | `useWorkouts` | Load/create/update/delete workouts; complete workout; update exercises |
-| `useProgress` | Stats, category breakdown, history; goals; chart series (weekly real, monthly fake) |
+| `useProgress` | Stats, category breakdown, history, performance; weekly activity, strength trends, recent sessions, weekly sets |
 | `useCategories` | List / save / delete categories |
 | `useExercises` | Local exercise list helpers (forms largely inline their own logic) |
 | `useRestTimer` | Rest countdown used in session |
@@ -412,17 +426,15 @@ fitness-app/
 - [x] Starter workouts for new auth users
 - [x] Workout list with search, create/edit dialogs, DnD exercises
 - [x] Live session: checklist, timers, inline auto-save, finish → history
-- [x] Progress metrics + weekly activity chart
+- [x] Progress: weekly hero, activity chart, strength trends, recent sessions
 - [x] Categories table + multi-select on workouts
 - [x] Serialized exercise write queue
+- [x] `exercise_performance` written on finish and used on Progress
 
 ### Gaps / tech debt (known from code)
 
 - [ ] Mount global Toaster so session/form toasts actually surface
 - [ ] Delete confirmation; optional finish notes UI
-- [ ] Real monthly trend (replace random series)
-- [ ] Workout history list UI on Progress
-- [ ] Write `exercise_performance` (or drop unused table)
 - [ ] Align RPC signatures (client `user_id` vs SQL definitions)
 - [ ] Profile settings (email, password, avatar, delete account)
 - [ ] Theme toggle (or remove unused theme-switch expectations)
@@ -433,7 +445,7 @@ fitness-app/
 
 ### Possible next product phases
 
-1. **Progress accuracy** — real monthly trends, history list, per-exercise performance.
+1. **Progress depth** — editable goals, richer lift history / PR views.
 2. **Account & trust** — profile settings, confirm delete, finish notes, toast reliability.
 3. **Cleanup** — dead routes/components, RPC/SQL parity, package branding.
 4. **Polish & launch** — broader E2E, mobile pass, deploy (e.g. Vercel).
