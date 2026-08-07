@@ -65,6 +65,7 @@ export interface Database {
           notes?: string
           adjustment?: string
           description?: string
+          muscle_groups: any // JSONB array of strings
           order_index: number
         }
         Insert: {
@@ -78,6 +79,7 @@ export interface Database {
           notes?: string
           adjustment?: string
           description?: string
+          muscle_groups?: any // JSONB array of strings
           order_index: number
         }
         Update: {
@@ -91,6 +93,7 @@ export interface Database {
           notes?: string
           adjustment?: string
           description?: string
+          muscle_groups?: any // JSONB array of strings
           order_index?: number
         }
       }

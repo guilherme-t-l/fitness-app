@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS exercises (
     notes TEXT,
     adjustment VARCHAR(100),
     description TEXT,
+    muscle_groups JSONB DEFAULT '[]'::jsonb,
     order_index INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -54,6 +55,7 @@ CREATE TABLE IF NOT EXISTS exercise_performance (
     reps_performed VARCHAR(50),
     weight_used VARCHAR(50),
     notes TEXT,
+    muscle_groups JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
