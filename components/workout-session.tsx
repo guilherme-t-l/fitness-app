@@ -1,18 +1,14 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { CheckCircle2, Circle, Edit2, X, Clock, ArrowLeft, Check } from "lucide-react"
-import type { SetStateAction } from "react"
-import { useTimer, useRestTimer } from "@/hooks/useTimer"
-import { useAutoSave } from "@/hooks/useAutoSave"
+import { CheckCircle2, Circle, Edit2, X, ArrowLeft, Check } from "lucide-react"
+import { useRestTimer } from "@/hooks/useTimer"
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel } from "@/components/ui/alert-dialog"
-import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 interface Exercise {
   id: string
@@ -71,13 +67,11 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   const [editingExercise, setEditingExercise] = useState<string | null>(null)
   const [savedChanges, setSavedChanges] = useState<Set<string>>(new Set())
   const [saveTimeouts, setSaveTimeouts] = useState<Map<string, NodeJS.Timeout>>(new Map())
-  const router = useRouter()
   const [showConfirm, setShowConfirm] = useState(false)
   const [completing, setCompleting] = useState(false)
   const navFallbackTimeout = useRef<NodeJS.Timeout | null>(null)
   const { toast } = useToast()
 
-  // Use the new rest timer hook
   const { restTimers, restActive, handleRestTimer, formatRestTime, parseRestTime } = useRestTimer()
 
   useEffect(() => {
@@ -88,19 +82,19 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   }, [])
 
   useEffect(() => {
-    // Cleanup timeouts on unmount
     return () => {
       saveTimeouts.forEach((timeout: NodeJS.Timeout) => clearTimeout(timeout))
     }
   }, [saveTimeouts])
 
-  // Keep timer in sync with restTime changes
   useEffect(() => {
     exercises.forEach((ex: ExerciseState) => {
-      const parsed = parseRestTime(ex.restTime)
-      // This will be handled by the useRestTimer hook
+      parseRestTime(ex.restTime)
     })
   }, [exercises, parseRestTime])
+
+  // silence unused ref (kept for parity with prior session behavior)
+  void navFallbackTimeout
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000)
@@ -145,7 +139,6 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
       return
     }
 
-    // Show visual confirmation
     setSavedChanges((prev: Set<string>) => new Set(prev).add(exerciseId))
     setTimeout(() => {
       setSavedChanges((prev: Set<string>) => {
@@ -159,13 +152,11 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   const updateExercise = (exerciseId: string, field: keyof ExerciseState, value: string) => {
     setExercises(exercises.map((ex: ExerciseState) => (ex.id === exerciseId ? { ...ex, [field]: value } : ex)))
 
-    // Clear existing timeout for this exercise
     const existingTimeout = saveTimeouts.get(exerciseId)
     if (existingTimeout) {
       clearTimeout(existingTimeout)
     }
 
-    // Set new timeout for auto-save
     const newTimeout = setTimeout(() => {
       void saveExerciseImmediately(exerciseId)
       setSaveTimeouts((prev: Map<string, NodeJS.Timeout>) => {
@@ -210,8 +201,8 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
       setShowConfirm(false)
       setCompleting(false)
       toast({
-        title: "Workout complete",
-        description: `Progress saved! Duration: ${durationMinutes} minutes. Keep building your legacy.`,
+        title: "Session complete",
+        description: `Saved · ${durationMinutes} minutes.`,
         duration: 5000,
         variant: "default",
       })
@@ -219,7 +210,7 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
     } catch (err) {
       setCompleting(false)
       toast({
-        title: "Error completing workout",
+        title: "Could not complete",
         description: "Failed to save progress. Please try again.",
         duration: 3000,
         variant: "destructive",
@@ -228,290 +219,280 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header - Responsive Redesign */}
-      <div className="sticky top-0 z-50 bg-gray-950/90 border-b border-gray-800 shadow-sm backdrop-blur px-2 py-2 md:static md:bg-transparent md:border-none md:shadow-none md:backdrop-blur-none">
-        <div className="flex items-center justify-between md:justify-between mb-2">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 pb-16">
+      {/* Sticky session header */}
+      <div className="sticky top-14 md:top-16 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-2 bg-background/90 backdrop-blur-md border-b border-border/60">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <Button
-            variant="outline"
+            variant="ghost"
+            size="sm"
             onClick={() => {
-              saveChangesToWorkout()
+              void saveChangesToWorkout()
               onExit()
             }}
-            className="border-gray-600 text-gray-300 hover:text-white bg-transparent px-2 py-1 text-xs md:text-base md:px-4 md:py-2"
+            className="text-muted-foreground hover:text-foreground -ml-2"
           >
-            <ArrowLeft className="h-4 w-4 mr-1 md:mr-2" />
-            <span className="hidden xs:inline">Exit</span>
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Exit
           </Button>
-          <span className="flex items-center space-x-1 text-gray-400 text-xs md:text-base">
-            <Clock className="h-4 w-4" />
-            <span>{formatTime(currentTime - startTime)}</span>
-          </span>
-        </div>
-        <div className="text-center mb-2">
-          <h1 className="text-lg md:text-2xl font-bold text-white truncate">{workout.name}</h1>
-        </div>
-        <div className="flex items-center justify-between gap-2 md:justify-center md:gap-4">
-          <Badge className="bg-green-500/20 text-green-400 px-2 py-1 text-xs md:text-sm">
-            {completedExercises}/{exercises.length} completed
-          </Badge>
+          <p className="font-sans text-2xl sm:text-3xl tracking-tight text-foreground tabular-nums">
+            {formatTime(currentTime - startTime)}
+          </p>
           <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
             <AlertDialogTrigger asChild>
               <Button
+                size="sm"
                 onClick={() => setShowConfirm(true)}
-                className="primary-glow text-white font-semibold px-3 py-1 text-xs md:text-base"
                 disabled={completedExercises === 0 || completing}
               >
                 Complete
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="bg-gradient-to-br from-[#101c2c] via-[#181c2f] to-[#1a133a] border border-gray-800 rounded-3xl shadow-2xl p-8 max-w-sm mx-auto flex flex-col gap-8 items-center">
-              <AlertDialogHeader className="w-full flex flex-col items-center">
-                <AlertDialogTitle className="text-white text-2xl md:text-3xl font-extrabold mb-3 tracking-tight text-center">Complete Workout?</AlertDialogTitle>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 text-2xl md:text-3xl font-extrabold leading-tight mb-2 text-center">Keep building your legacy.</span>
-                <span className="text-gray-300 text-base md:text-lg text-center">Your progress and all exercise details will be saved.</span>
+            <AlertDialogContent className="bg-popover border-border max-w-sm">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="font-display text-2xl font-medium text-center">
+                  Finish this session?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-center text-muted-foreground">
+                  Your progress and exercise details will be saved.
+                </AlertDialogDescription>
               </AlertDialogHeader>
-              <div className="border-t border-gray-800 w-full" />
-              <AlertDialogFooter className="w-full flex flex-row gap-4 justify-center mt-2">
-                <AlertDialogCancel className="text-gray-400 border-gray-700 px-6 py-2 rounded-lg font-medium bg-gray-900/70 hover:bg-gray-800 transition">Cancel</AlertDialogCancel>
+              <AlertDialogFooter className="sm:justify-center gap-2">
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <Button
                   type="button"
-                  className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white font-bold px-8 py-2 rounded-lg shadow-lg focus:ring-2 focus:ring-cyan-400 focus:outline-none transition-all primary-glow"
                   onClick={() => void handleCompleteWithConfirm()}
                   disabled={completing}
                 >
-                  {completing ? "Saving..." : "Yes, Complete"}
+                  {completing ? "Saving…" : "Yes, finish"}
                 </Button>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
+        <div className="text-center space-y-2">
+          <h1 className="font-display text-xl sm:text-2xl font-normal tracking-tight text-foreground truncate">
+            {workout.name}
+          </h1>
+          <p className="text-xs text-muted-foreground tracking-wide">
+            {completedExercises} of {exercises.length} complete
+          </p>
+          <Progress value={progressPercentage} className="h-0.5 mt-2" />
+        </div>
       </div>
 
-      {/* Progress */}
-      <Card className="card-glow">
-        <CardContent className="p-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Workout Progress</span>
-              <span className="text-white">{Math.round(progressPercentage)}%</span>
-            </div>
-            <Progress value={progressPercentage} className="h-2" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Exercises */}
-      <div className="space-y-4">
-        {exercises.map((exercise: ExerciseState, index: number) => (
-          <Card
+      {/* Exercise journal rows */}
+      <div className="divide-y divide-border/70 mt-4">
+        {exercises.map((exercise: ExerciseState) => (
+          <div
             key={exercise.id}
-            className={`card-glow transition-all duration-300 ${exercise.completed ? "ring-2 ring-green-500/50" : ""}`}
+            className={cn(
+              "py-6 transition-colors duration-300",
+              exercise.completed && "opacity-70"
+            )}
           >
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleExerciseComplete(exercise.id)}
-                    className="p-0 h-auto hover:bg-transparent"
-                  >
-                    {exercise.completed ? (
-                      <CheckCircle2 className="h-6 w-6 text-green-500" />
-                    ) : (
-                      <Circle className="h-6 w-6 text-gray-400" />
-                    )}
-                  </Button>
-                  <div>
-                    <CardTitle className={`text-lg ${exercise.completed ? "text-green-400" : "text-white"}`}>
-                      {exercise.actualName || exercise.name}
-                    </CardTitle>
-                    <div className="flex items-center space-x-2 text-sm text-gray-400">
-                      <span>{exercise.sets} sets</span>
-                      {exercise.restTime && <span>• Rest: {exercise.restTime}</span>}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {editingExercise === exercise.id ? (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          void saveExerciseImmediately(exercise.id)
-                          setEditingExercise(null)
-                        }}
-                        className="text-green-400 hover:text-green-300 hover:bg-green-400/10"
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          // Discard changes by reverting to original values
-                          setExercises(
-                            exercises.map((ex: ExerciseState) =>
-                              ex.id === exercise.id
-                                ? {
-                                    ...ex,
-                                    actualReps: ex.reps,
-                                    actualWeight: ex.weight,
-                                    actualName: ex.name,
-                                    adjustment: workout.exercises.find((orig) => orig.id === ex.id)?.adjustment || "",
-                                    description: workout.exercises.find((orig) => orig.id === ex.id)?.description || "",
-                                  }
-                                : ex
-                            )
-                          )
-                          setEditingExercise(null)
-                        }}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => toggleExerciseComplete(exercise.id)}
+                  className="mt-0.5 shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  aria-label={exercise.completed ? "Mark incomplete" : "Mark complete"}
+                >
+                  {exercise.completed ? (
+                    <CheckCircle2 className="h-6 w-6 text-primary transition-transform duration-200" />
                   ) : (
+                    <Circle className="h-6 w-6 text-muted-foreground/50" />
+                  )}
+                </button>
+                <div className="min-w-0 space-y-1">
+                  <h2
+                    className={cn(
+                      "font-display text-xl font-normal tracking-tight",
+                      exercise.completed ? "text-muted-foreground line-through decoration-border" : "text-foreground"
+                    )}
+                  >
+                    {exercise.actualName || exercise.name}
+                  </h2>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                    <span>
+                      <span className="text-muted-foreground/70">Sets </span>
+                      <span className="text-foreground">{exercise.sets}</span>
+                    </span>
+                    {(exercise.actualReps || exercise.reps) && (
+                      <span>
+                        <span className="text-muted-foreground/70">Reps </span>
+                        <span className="text-foreground">{exercise.actualReps || exercise.reps}</span>
+                      </span>
+                    )}
+                    {(exercise.actualWeight || exercise.weight) && (
+                      <span>
+                        <span className="text-muted-foreground/70">Weight </span>
+                        <span className="text-foreground">{exercise.actualWeight || exercise.weight}</span>
+                      </span>
+                    )}
+                  </div>
+                  {(exercise.restTime || exercise.adjustment) && (
+                    <p className="text-xs text-muted-foreground/70">
+                      {[
+                        exercise.restTime ? `Rest ${exercise.restTime}` : null,
+                        exercise.adjustment ? `Position ${exercise.adjustment}` : null,
+                      ].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {savedChanges.has(exercise.id) && (
+                  <span className="text-xs text-primary mr-1">Saved</span>
+                )}
+                {editingExercise === exercise.id ? (
+                  <>
                     <Button
                       variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingExercise(exercise.id)}
-                      className="text-gray-400 hover:text-white"
+                      size="icon"
+                      onClick={() => {
+                        void saveExerciseImmediately(exercise.id)
+                        setEditingExercise(null)
+                      }}
+                      className="h-9 w-9 text-primary"
+                      aria-label="Save edits"
                     >
-                      <Edit2 className="h-4 w-4" />
+                      <Check className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {editingExercise === exercise.id ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm text-gray-400">Exercise Name</label>
-                    <Input
-                      value={exercise.actualName || ""}
-                      onChange={(e) => updateExercise(exercise.id, "actualName", e.target.value)}
-                      className="bg-gray-800/50 border-gray-600 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-400">Description</label>
-                    <Input
-                      value={exercise.description || ""}
-                      onChange={(e) => updateExercise(exercise.id, "description", e.target.value)}
-                      placeholder="Brief exercise description or notes..."
-                      className="bg-gray-800/50 border-gray-600 text-white"
-                    />
-                  </div>
-                  <div className="grid md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="text-sm text-gray-400">Reps</label>
-                      <Input
-                        value={exercise.actualReps || ""}
-                        onChange={(e) => updateExercise(exercise.id, "actualReps", e.target.value)}
-                        className="bg-gray-800/50 border-gray-600 text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-gray-400">Weight</label>
-                      <Input
-                        value={exercise.actualWeight || ""}
-                        onChange={(e) => updateExercise(exercise.id, "actualWeight", e.target.value)}
-                        placeholder="kg/lbs"
-                        className="bg-gray-800/50 border-gray-600 text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-gray-400">Rest Time</label>
-                      <Input
-                        value={exercise.restTime || ""}
-                        onChange={(e) => updateExercise(exercise.id, "restTime", e.target.value)}
-                        placeholder="60s"
-                        className="bg-gray-800/50 border-gray-600 text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-gray-400">Machine Position</label>
-                      <Input
-                        type="number"
-                        value={exercise.adjustment || ""}
-                        onChange={(e) => updateExercise(exercise.id, "adjustment", e.target.value)}
-                        placeholder="e.g., 5, 12"
-                        className="bg-gray-800/50 border-gray-600 text-white"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {exercise.description && (
-                    <div className="text-sm">
-                      <span className="text-gray-400">Description: </span>
-                      <span className="text-gray-300">{exercise.description}</span>
-                    </div>
-                  )}
-                  <div className="grid md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-400">Reps: </span>
-                      <span className="text-white">{exercise.actualReps || exercise.reps}</span>
-                    </div>
-                    {(exercise.actualWeight || exercise.weight) && (
-                      <div>
-                        <span className="text-gray-400">Weight: </span>
-                        <span className="text-white">{exercise.actualWeight || exercise.weight}</span>
-                      </div>
-                    )}
-                    {exercise.restTime && (
-                      <div>
-                        <span className="text-gray-400">Rest: </span>
-                        <span className="text-white">{exercise.restTime}</span>
-                      </div>
-                    )}
-                    {exercise.adjustment && (
-                      <div>
-                        <span className="text-gray-400">Position: </span>
-                        <span className="text-green-400">{exercise.adjustment}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {exercise.notes && (
-                <div className="text-sm">
-                  <span className="text-gray-400">Notes: </span>
-                  <span className="text-gray-300">{exercise.notes}</span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between mt-2">
-                <div className="flex items-center gap-2">
-                  {exercise.completed && <Badge className="bg-green-500/20 text-green-400">✓ Completed</Badge>}
-                  {savedChanges.has(exercise.id) && (
-                    <Badge className="bg-blue-500/20 text-blue-400 animate-pulse">✓ Saved</Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">Rest Timer:</span>
-                  <span className={`font-mono text-xs px-2 py-1 rounded border ${restTimers[exercise.id] === 0 ? 'bg-red-900/60 text-red-400 border-red-700/30 animate-pulse' : 'text-green-400 bg-gray-900/60 border-green-700/30'}` }>
-                    {formatRestTime(restTimers[exercise.id] ?? parseRestTime(exercise.restTime))}
-                  </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setExercises(
+                          exercises.map((ex: ExerciseState) =>
+                            ex.id === exercise.id
+                              ? {
+                                  ...ex,
+                                  actualReps: ex.reps,
+                                  actualWeight: ex.weight,
+                                  actualName: ex.name,
+                                  adjustment: workout.exercises.find((orig) => orig.id === ex.id)?.adjustment || "",
+                                  description: workout.exercises.find((orig) => orig.id === ex.id)?.description || "",
+                                }
+                              : ex
+                          )
+                        )
+                        setEditingExercise(null)
+                      }}
+                      className="h-9 w-9 text-muted-foreground"
+                      aria-label="Discard edits"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
                   <Button
-                    size="sm"
-                    variant="outline"
-                    className="px-2 py-1 text-xs border-green-700/30 text-green-400 hover:bg-green-900/20"
-                    onClick={() => handleRestTimer(exercise.id, exercise.restTime)}
-                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setEditingExercise(exercise.id)}
+                    className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                    aria-label="Edit exercise"
                   >
-                    {restActive[exercise.id] ? 'Reset' : 'Start'}
+                    <Edit2 className="h-4 w-4" />
                   </Button>
+                )}
+              </div>
+            </div>
+
+            {editingExercise === exercise.id ? (
+              <div className="mt-4 ml-9 space-y-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Name</label>
+                  <Input
+                    value={exercise.actualName || ""}
+                    onChange={(e) => updateExercise(exercise.id, "actualName", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Notes</label>
+                  <Input
+                    value={exercise.description || ""}
+                    onChange={(e) => updateExercise(exercise.id, "description", e.target.value)}
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Reps</label>
+                    <Input
+                      value={exercise.actualReps || ""}
+                      onChange={(e) => updateExercise(exercise.id, "actualReps", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Weight</label>
+                    <Input
+                      value={exercise.actualWeight || ""}
+                      onChange={(e) => updateExercise(exercise.id, "actualWeight", e.target.value)}
+                      placeholder="kg/lbs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Rest</label>
+                    <Input
+                      value={exercise.restTime || ""}
+                      onChange={(e) => updateExercise(exercise.id, "restTime", e.target.value)}
+                      placeholder="60s"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Position</label>
+                    <Input
+                      type="number"
+                      value={exercise.adjustment || ""}
+                      onChange={(e) => updateExercise(exercise.id, "adjustment", e.target.value)}
+                      placeholder="e.g. 5"
+                    />
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            ) : (
+              <>
+                {exercise.description && (
+                  <p className="mt-2 ml-9 text-sm text-muted-foreground leading-relaxed">
+                    {exercise.description}
+                  </p>
+                )}
+                {exercise.notes && (
+                  <p className="mt-1 ml-9 text-sm text-muted-foreground/80">
+                    {exercise.notes}
+                  </p>
+                )}
+              </>
+            )}
+
+            <div className="mt-4 ml-9 flex items-center justify-between gap-3">
+              <span className="text-sm text-muted-foreground">Rest timer</span>
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "font-sans text-lg tabular-nums tracking-tight min-w-[3.5rem] text-right",
+                    restTimers[exercise.id] === 0 && restActive[exercise.id]
+                      ? "text-destructive"
+                      : "text-foreground"
+                  )}
+                >
+                  {formatRestTime(restTimers[exercise.id] ?? parseRestTime(exercise.restTime))}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 min-w-[4.5rem] px-3"
+                  onClick={() => handleRestTimer(exercise.id, exercise.restTime)}
+                  type="button"
+                  aria-label={restActive[exercise.id] ? "Reset rest timer" : "Start rest timer"}
+                >
+                  {restActive[exercise.id] ? "Reset" : "Start"}
+                </Button>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </div>

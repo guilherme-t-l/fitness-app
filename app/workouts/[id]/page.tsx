@@ -53,50 +53,46 @@ export default function WorkoutDetailPage() {
     await updateWorkoutExercises(workoutId, updatedExercises)
   }
 
-  // Show loading state
   if (authLoading || loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-white mx-auto" />
-          <p className="text-gray-400">Loading workout...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="text-muted-foreground text-sm">Preparing your session…</p>
         </div>
       </div>
     )
   }
 
-  // Show error state
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="text-red-400 text-lg">⚠️ {error}</div>
-          <p className="text-gray-400">Please check your database connection</p>
-          <Button onClick={() => window.location.reload()} className="primary-glow">
-            Try Again
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4 max-w-sm px-6">
+          <p className="text-destructive text-sm">{error}</p>
+          <p className="text-muted-foreground text-sm">Please check your connection and try again.</p>
+          <Button onClick={() => window.location.reload()} variant="outline">
+            Try again
           </Button>
         </div>
       </div>
     )
   }
 
-  // Show not found state
   if (notFound) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="text-red-400 text-lg">⚠️ Workout not found</div>
-          <p className="text-gray-400">The workout you're looking for doesn't exist</p>
-          <Button onClick={() => router.push('/workouts')} className="primary-glow">
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4 max-w-sm px-6">
+          <p className="font-display text-2xl text-foreground">Workout not found</p>
+          <p className="text-muted-foreground text-sm">This routine may have been removed.</p>
+          <Button onClick={() => router.push('/workouts')} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Workouts
+            Back to workouts
           </Button>
         </div>
       </div>
     )
   }
 
-  // Show workout session
   if (workout) {
     return (
       <WorkoutSession
@@ -109,4 +105,4 @@ export default function WorkoutDetailPage() {
   }
 
   return null
-} 
+}

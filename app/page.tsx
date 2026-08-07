@@ -1,17 +1,16 @@
 "use client"
 import Link from 'next/link'
-import Image from 'next/image'
 import { useState, useEffect } from 'react';
 import { AuthModal } from '@/components/ui/AuthModal';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
 
 export default function HomePage() {
   const [authOpen, setAuthOpen] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Handle Supabase auth redirect tokens or errors in the URL hash
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const hash = window.location.hash;
@@ -28,7 +27,6 @@ export default function HomePage() {
           router.replace('/workouts');
         });
       } else if (error) {
-        // Redirect to /auth/callback with error details as query params
         router.replace(`/auth/callback?error=${encodeURIComponent(error)}&error_code=${encodeURIComponent(error_code || '')}&error_description=${encodeURIComponent(error_description || '')}`);
       }
     }
@@ -39,39 +37,58 @@ export default function HomePage() {
       setAuthOpen(true);
     }
   }, [searchParams]);
+
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-purple-950 text-white relative overflow-hidden">
-      {/* Animated background blobs */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-purple-700 opacity-30 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute -bottom-32 right-0 w-96 h-96 bg-cyan-500 opacity-20 rounded-full blur-3xl animate-pulse" />
-      <div className="z-10 flex flex-col items-center gap-8 w-full px-4 md:px-0">
-        <Image src="/placeholder-logo.svg" alt="FitFlow Logo" width={96} height={96} className="mb-2 animate-bounce drop-shadow-lg" />
-        <h1 className="text-5xl md:text-6xl font-extrabold mb-2 bg-gradient-to-r from-cyan-400 to-purple-400 text-transparent bg-clip-text drop-shadow-xl">Welcome to FitFlow</h1>
-        <p className="text-gray-200 mb-4 text-center text-2xl font-medium max-w-2xl drop-shadow">Your smart fitness companion. Start your journey:</p>
-        {/* Feature highlights */}
-        <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl justify-center">
-          <div className="flex items-center gap-3 text-cyan-300 text-lg"><span className="text-2xl">💪</span> Track & edit custom workouts</div>
-          <div className="flex items-center gap-3 text-purple-300 text-lg"><span className="text-2xl">📈</span> Visualize your progress</div>
-          <div className="flex items-center gap-3 text-green-300 text-lg"><span className="text-2xl">⚡</span> Fast, modern, and easy to use</div>
-        </div>
-        {/* Actions */}
-        <div className="flex flex-col md:flex-row gap-4 w-full max-w-md mx-auto mt-6">
-          <button
+    <div className="relative min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center px-6 overflow-hidden">
+      {/* Full-bleed warm stone atmosphere */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          backgroundImage: `
+            radial-gradient(ellipse 90% 60% at 50% 0%, hsl(38 30% 88% / 0.9), transparent 55%),
+            radial-gradient(ellipse 50% 40% at 10% 80%, hsl(95 14% 86% / 0.45), transparent 50%),
+            radial-gradient(ellipse 40% 35% at 90% 70%, hsl(30 22% 88% / 0.4), transparent 45%)
+          `,
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.035]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        }}
+      />
+
+      <div className="w-full max-w-xl text-center flex flex-col items-center gap-8">
+        <p className="font-display text-5xl sm:text-6xl md:text-7xl tracking-tight text-foreground animate-fade-rise">
+          FitFlow
+        </p>
+        <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-normal text-foreground/90 leading-snug animate-fade-rise-delay">
+          Your workouts, in one place.
+        </h1>
+        <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-md animate-fade-rise-delay-2">
+          Build routines, run sessions, and track what you’ve done.
+        </p>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mt-2 animate-fade-rise-delay-2">
+          <Button
+            size="lg"
+            className="min-h-[48px] px-8 text-base"
             onClick={() => setAuthOpen(true)}
-            className="flex-1 min-h-[56px] flex flex-col items-center justify-center rounded-xl text-lg font-semibold shadow-lg border border-cyan-500/40 bg-gradient-to-r from-cyan-900 to-cyan-700 text-cyan-200 hover:from-cyan-800 hover:to-cyan-600 hover:scale-105 transition-all"
           >
-            <span className="font-semibold text-lg">Login / Sign Up</span>
-            <span className="text-sm text-cyan-300 mt-1">(secure your data)</span>
-          </button>
-          <Link
-            href="/workouts"
-            className="flex-1 min-h-[56px] flex items-center justify-center rounded-xl text-lg font-semibold shadow-lg border border-cyan-500/40 bg-gradient-to-r from-green-500 to-cyan-500 text-white text-center hover:from-green-600 hover:to-cyan-600 hover:scale-105 transition-all"
+            Login / Sign Up
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="min-h-[48px] px-8 text-base"
+            asChild
           >
-            Use as Guest
-          </Link>
-          <AuthModal open={authOpen} onOpenChange={setAuthOpen} />
+            <Link href="/workouts">Use as Guest</Link>
+          </Button>
         </div>
       </div>
-    </main>
+      <AuthModal open={authOpen} onOpenChange={setAuthOpen} />
+    </div>
   )
-} 
+}

@@ -114,16 +114,16 @@ export default function CreateWorkout() {
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
-        <h1 className="text-4xl md:text-5xl font-cyber font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">
+        <h1 className="font-display text-4xl md:text-5xl font-normal tracking-tight text-foreground">
           Create Workout Program
         </h1>
-        <p className="text-gray-400">Design your perfect training regimen</p>
+        <p className="text-muted-foreground">Design your perfect training regimen</p>
       </div>
 
       {/* Workout Details */}
-      <Card className="cyber-border bg-black/40 backdrop-blur-sm">
+      <Card className="border-border/60 bg-card">
         <CardHeader>
-          <CardTitle className="text-cyan-400 flex items-center space-x-2">
+          <CardTitle className="text-foreground flex items-center space-x-2">
             <Target className="h-5 w-5" />
             <span>Program Details</span>
           </CardTitle>
@@ -131,7 +131,7 @@ export default function CreateWorkout() {
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="workout-name" className="text-gray-300">
+              <Label htmlFor="workout-name" className="text-muted-foreground">
                 Program Name
               </Label>
               <Input
@@ -139,20 +139,20 @@ export default function CreateWorkout() {
                 value={workoutName}
                 onChange={(e) => setWorkoutName(e.target.value)}
                 placeholder="e.g., Beast Mode Training"
-                className="bg-gray-800/50 border-gray-600 text-white"
+                className=""
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-300">Total Active Days</Label>
+              <Label className="text-muted-foreground">Total Active Days</Label>
               <div className="flex items-center space-x-2">
-                <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">
+                <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
                   {workoutDays.filter((day) => day.exercises.length > 0).length} days
                 </Badge>
               </div>
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="workout-description" className="text-gray-300">
+            <Label htmlFor="workout-description" className="text-muted-foreground">
               Description
             </Label>
             <Textarea
@@ -160,16 +160,16 @@ export default function CreateWorkout() {
               value={workoutDescription}
               onChange={(e) => setWorkoutDescription(e.target.value)}
               placeholder="Describe your workout program..."
-              className="bg-gray-800/50 border-gray-600 text-white"
+              className=""
             />
           </div>
         </CardContent>
       </Card>
 
       {/* Day Selection */}
-      <Card className="cyber-border bg-black/40 backdrop-blur-sm">
+      <Card className="border-border/60 bg-card">
         <CardHeader>
-          <CardTitle className="text-purple-400 flex items-center space-x-2">
+          <CardTitle className="text-foreground flex items-center space-x-2">
             <Clock className="h-5 w-5" />
             <span>Weekly Schedule</span>
           </CardTitle>
@@ -183,13 +183,13 @@ export default function CreateWorkout() {
                 onClick={() => setSelectedDay(day)}
                 className={`${
                   selectedDay === day
-                    ? "bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
-                    : "border-gray-600 text-gray-300 hover:text-cyan-400"
-                } ${workoutDays.find((d) => d.day === day)?.exercises.length > 0 ? "ring-2 ring-green-400/50" : ""}`}
+                    ? "bg-primary text-primary-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                } ${(workoutDays.find((d) => d.day === day)?.exercises.length ?? 0) > 0 ? "ring-1 ring-primary/30" : ""}`}
               >
                 {day}
-                {workoutDays.find((d) => d.day === day)?.exercises.length > 0 && (
-                  <Badge className="ml-2 bg-green-500/20 text-green-400 text-xs">
+                {(workoutDays.find((d) => d.day === day)?.exercises.length ?? 0) > 0 && (
+                  <Badge className="ml-2 text-xs">
                     {workoutDays.find((d) => d.day === day)?.exercises.length}
                   </Badge>
                 )}
@@ -200,9 +200,9 @@ export default function CreateWorkout() {
       </Card>
 
       {/* Exercise Builder */}
-      <Card className="cyber-border bg-black/40 backdrop-blur-sm">
+      <Card className="border-border/60 bg-card">
         <CardHeader>
-          <CardTitle className="text-green-400 flex items-center justify-between">
+          <CardTitle className="text-foreground flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Dumbbell className="h-5 w-5" />
               <span>{selectedDay} Exercises</span>
@@ -210,7 +210,6 @@ export default function CreateWorkout() {
             <Button
               onClick={() => addExercise(selectedDay)}
               size="sm"
-              className="bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Exercise
@@ -219,23 +218,23 @@ export default function CreateWorkout() {
         </CardHeader>
         <CardContent className="space-y-4">
           {currentDay?.exercises.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-muted-foreground">
               <Dumbbell className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No exercises added for {selectedDay}</p>
               <p className="text-sm">Click "Add Exercise" to get started</p>
             </div>
           ) : (
             currentDay?.exercises.map((exercise, index) => (
-              <Card key={exercise.id} className="bg-gray-800/30 border-gray-700">
+              <Card key={exercise.id} className="border-border/60 bg-muted/40">
                 <CardContent className="p-4">
                   <div className="grid md:grid-cols-6 gap-4 items-end">
                     <div className="md:col-span-2">
-                      <Label className="text-gray-300 text-sm">Exercise</Label>
+                      <Label className="text-muted-foreground text-sm">Exercise</Label>
                       <Select
                         value={exercise.name}
                         onValueChange={(value) => updateExercise(selectedDay, exercise.id, "name", value)}
                       >
-                        <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                        <SelectTrigger className="">
                           <SelectValue placeholder="Select exercise" />
                         </SelectTrigger>
                         <SelectContent>
@@ -248,32 +247,32 @@ export default function CreateWorkout() {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-gray-300 text-sm">Sets</Label>
+                      <Label className="text-muted-foreground text-sm">Sets</Label>
                       <Input
                         type="number"
                         value={exercise.sets}
                         onChange={(e) =>
                           updateExercise(selectedDay, exercise.id, "sets", Number.parseInt(e.target.value))
                         }
-                        className="bg-gray-700 border-gray-600 text-white"
+                        className=""
                       />
                     </div>
                     <div>
-                      <Label className="text-gray-300 text-sm">Reps</Label>
+                      <Label className="text-muted-foreground text-sm">Reps</Label>
                       <Input
                         value={exercise.reps}
                         onChange={(e) => updateExercise(selectedDay, exercise.id, "reps", e.target.value)}
                         placeholder="10-12"
-                        className="bg-gray-700 border-gray-600 text-white"
+                        className=""
                       />
                     </div>
                     <div>
-                      <Label className="text-gray-300 text-sm">Weight</Label>
+                      <Label className="text-muted-foreground text-sm">Weight</Label>
                       <Input
                         value={exercise.weight || ""}
                         onChange={(e) => updateExercise(selectedDay, exercise.id, "weight", e.target.value)}
                         placeholder="kg/lbs"
-                        className="bg-gray-700 border-gray-600 text-white"
+                        className=""
                       />
                     </div>
                     <div>
@@ -299,7 +298,7 @@ export default function CreateWorkout() {
         <Button
           onClick={saveWorkout}
           size="lg"
-          className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white font-semibold cyber-glow px-8"
+          className="px-8"
           disabled={!workoutName || workoutDays.every((day) => day.exercises.length === 0)}
         >
           <Save className="h-5 w-5 mr-2" />
