@@ -16,13 +16,13 @@ export function ExerciseRow({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown
   return (
     <div className="flex items-center gap-2 mb-2">
       <input
-        className="bg-gray-800/50 border-gray-600 text-white px-2 py-1 rounded"
+        className="border border-input bg-background px-2 py-1 rounded-md text-sm"
         value={exercise.name}
         onChange={e => onUpdate(exercise.id, "name", e.target.value)}
         placeholder="Exercise name"
       />
       <input
-        className="bg-gray-800/50 border-gray-600 text-white px-2 py-1 rounded w-16"
+        className="border border-input bg-background px-2 py-1 rounded-md text-sm w-16"
         value={exercise.sets}
         type="number"
         min={1}
@@ -30,7 +30,7 @@ export function ExerciseRow({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown
         placeholder="Sets"
       />
       <input
-        className="bg-gray-800/50 border-gray-600 text-white px-2 py-1 rounded w-16"
+        className="border border-input bg-background px-2 py-1 rounded-md text-sm w-16"
         value={exercise.reps}
         onChange={e => onUpdate(exercise.id, "reps", e.target.value)}
         placeholder="Reps"

@@ -1,6 +1,6 @@
 "use client"
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './dialog';
 import { Button } from './button';
 import { Input } from './input';
 import { useAuth } from '@/components/AuthProvider';
@@ -15,19 +15,32 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
   const [success, setSuccess] = useState<string | null>(null);
   const router = useRouter();
 
-  // If already logged in, show special message
   if (!isGuest && user) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="bg-gray-900 border-cyan-700/40 text-white max-w-md w-full max-h-[90vh] overflow-y-auto flex flex-col items-center justify-center gap-6">
+        <DialogContent className="bg-popover border-border max-w-md w-full gap-6">
           <DialogHeader>
-            <DialogTitle className="text-cyan-400 text-2xl font-bold mb-2 text-center">
-              You are already logged in.
+            <DialogTitle className="font-display text-2xl font-medium text-foreground text-center">
+              You’re already logged in
             </DialogTitle>
+            <DialogDescription className="text-center text-muted-foreground">
+              Head back to your workouts, or log out.
+            </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-4 w-full">
+          <div className="flex flex-col gap-3 w-full">
             <Button
-              className="w-full bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-400 min-h-[44px]"
+              className="w-full min-h-[44px]"
+              onClick={() => {
+                onOpenChange(false);
+                setTimeout(() => {
+                  router.replace('/workouts');
+                }, 150);
+              }}
+            >
+              Return to my account
+            </Button>
+            <Button
+              className="w-full min-h-[44px]"
               onClick={async () => {
                 await logout();
                 onOpenChange(false);
@@ -35,18 +48,6 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
               variant="outline"
             >
               Log out
-            </Button>
-            <Button
-              className="w-full bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 min-h-[44px]"
-              onClick={() => {
-                onOpenChange(false);
-                setTimeout(() => {
-                  router.replace('/workouts');
-                }, 150); // Wait for modal to close
-              }}
-              variant="default"
-            >
-              Return to my account
             </Button>
           </div>
         </DialogContent>
@@ -62,7 +63,6 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
       const { error } = await login(email, password) as any;
       if (error) setError(error.message || 'Login failed');
       else {
-        // After login, redirect to /workouts if on root, else stay
         if (typeof window !== 'undefined') {
           if (window.location.pathname === '/') {
             router.replace('/workouts');
@@ -73,17 +73,22 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
     } else {
       const { error } = await signup(email, password) as any;
       if (error) setError(error.message || 'Signup failed');
-      else setSuccess('Check your email to confirm your account!');
+      else setSuccess('Check your email to confirm your account.');
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-gray-900 border-cyan-700/40 text-white max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-popover border-border max-w-md w-full">
         <DialogHeader>
-          <DialogTitle className="text-cyan-400 text-2xl font-bold mb-2">
-            {mode === 'login' ? 'Login to FitFlow' : 'Sign Up for FitFlow'}
+          <DialogTitle className="font-display text-2xl font-medium text-foreground">
+            {mode === 'login' ? 'Login to FitFlow' : 'Sign up for FitFlow'}
           </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            {mode === 'login'
+              ? 'Sign in to save and sync your workouts.'
+              : 'Create an account to keep your workouts across devices.'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <Input
@@ -92,7 +97,6 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
-            className="bg-gray-800 border-cyan-700/30 text-white focus:ring-2 focus:ring-cyan-400"
             autoFocus
             aria-label="Email address"
             autoComplete="email"
@@ -103,20 +107,19 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
-            className="bg-gray-800 border-cyan-700/30 text-white focus:ring-2 focus:ring-cyan-400"
             aria-label="Password"
             autoComplete="current-password"
           />
-          {error && <div className="text-red-400 text-sm" role="alert">{error}</div>}
-          {success && <div className="text-green-400 text-sm" role="status">{success}</div>}
-          <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-400 min-h-[44px]" disabled={loading} aria-label={mode === 'login' ? 'Login' : 'Sign Up'}>
-            {loading ? 'Loading...' : mode === 'login' ? 'Login' : 'Sign Up'}
+          {error && <div className="text-destructive text-sm" role="alert">{error}</div>}
+          {success && <div className="text-primary text-sm" role="status">{success}</div>}
+          <Button type="submit" className="w-full min-h-[44px]" disabled={loading} aria-label={mode === 'login' ? 'Login' : 'Sign Up'}>
+            {loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Sign up'}
           </Button>
         </form>
-        <div className="text-center mt-4">
+        <div className="text-center mt-2">
           <button
             type="button"
-            className="text-cyan-400 hover:underline text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded min-h-[44px] px-2"
+            className="text-muted-foreground hover:text-foreground text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm min-h-[44px] px-2 transition-colors"
             onClick={() => {
               setMode(mode === 'login' ? 'signup' : 'login');
               setError(null);
@@ -124,10 +127,10 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
             }}
             aria-label={mode === 'login' ? 'Switch to Sign Up' : 'Switch to Login'}
           >
-            {mode === 'login' ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
+            {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>
         </div>
       </DialogContent>
     </Dialog>
   );
-} 
+}

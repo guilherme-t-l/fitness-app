@@ -94,24 +94,24 @@ export function AutocompleteInput({
         onFocus={handleInputFocus}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className={cn("bg-gray-700 border-gray-600 text-white", className)}
+        className={className}
       />
       {isOpen && filteredSuggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+        <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-none max-h-60 overflow-auto">
           {filteredSuggestions.map((suggestion, index) => (
             <button
               key={index}
               type="button"
               className={cn(
-                "w-full px-3 py-2 text-left text-white hover:bg-gray-700 focus:bg-gray-700 focus:outline-none",
-                inputValue.toLowerCase() === suggestion.toLowerCase() && "bg-gray-700"
+                "w-full px-3 py-2 text-left text-foreground hover:bg-muted focus:bg-muted focus:outline-none text-sm",
+                inputValue.toLowerCase() === suggestion.toLowerCase() && "bg-muted"
               )}
               onClick={() => handleSuggestionClick(suggestion)}
             >
               <div className="flex items-center justify-between">
                 <span>{suggestion}</span>
                 {inputValue.toLowerCase() === suggestion.toLowerCase() && (
-                  <Check className="h-4 w-4 text-blue-400" />
+                  <Check className="h-4 w-4 text-primary" />
                 )}
               </div>
             </button>

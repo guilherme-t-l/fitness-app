@@ -18,16 +18,24 @@ This document consolidates all rules, guidelines, and standards for the fitness 
 ## 🎨 Design Rules
 
 ### Visual Style
-- **Dark Mode by default:** Sleek, modern, and edgy — think high-end nightclub or luxury fitness studio
-- **Inspiration:** Structure and polish from Airbnb, clean typography from Apple, and the dark, rebellious energy of Gymshark Blackout or Nike Training Club's dark mode
-- **Layout:** Clean, spacious, with generous padding and clear visual hierarchy
-- **Micro-interactions:** Smooth, subtle, and refined — never childish or over-the-top
-- **Mood:** Confident, sleek, unapologetically bold. Visual emphasis on strength, exclusivity, and a premium feel
+- **Light-only:** Warm limestone / warm stone canvas. No dark mode. No neon.
+- **Thesis:** One quiet composition. Strong type. Warm stone. Botanical ink. Almost no chrome.
+- **Metaphor:** Luxury wellness journal + private coach + intelligent training log — not a fitness dashboard.
+- **Inspiration (principles only):** Visual restraint and materiality of premium wellness brands; understated confidence. Do not copy layouts, photography, or branding.
+- **Layout:** Generous whitespace, clear hierarchy, hairline dividers, tonal surfaces — not cards everywhere.
+- **Micro-interactions:** Soft, editorial (fade-rise, row-in, calm state transitions) — never glitch, pulse-neon, or bounce.
+- **Mood:** Premium · Minimal · Calm · Editorial · Aspirational · Effortless · Sophisticated
 
 ### Tone & Brand
-- **Voice:** Confident, sleek, and bold
-- **Animation:** Elegant and modern, never childish or excessive
-- **Brand Feel:** Strong, exclusive, premium
+- **Voice:** Calm, confident, understated
+- **Animation:** Intentional and few (2–3 per surface), never decorative noise
+- **Brand Feel:** Private coach / lifestyle publication — designer removed UI rather than added it
+
+### Typography
+- **Display:** Fraunces — page titles, editorial headlines, expressive moments
+- **Body / UI:** Figtree — navigation, labels, controls, numbers, functional copy
+- Large confident headlines; restrained weights; large numbers when they matter
+- Avoid tiny dashboard type, excessive uppercase, too many font sizes, dense metadata
 
 ### Mobile & Responsive
 - **Fully responsive:** Works flawlessly on all devices, from small phones to ultrawide monitors
@@ -37,22 +45,22 @@ This document consolidates all rules, guidelines, and standards for the fitness 
 
 ### Accessibility
 - **Best practices:** Maintain contrast, logical focus order, and readable text
-- **Dark ≠ hard to read:** Everything must be easy on the eyes and inclusive
 - **Keyboard navigation:** Full keyboard support for all interactive elements
 - **Touch targets:** Minimum 44px for mobile interactions
 
 ### Design Priorities
-- **Visual hierarchy:** Information is scannable at a glance
-- **Breathing room:** Space is strength — don't crowd, but don't leave too much empty space (Airbnb/Apple inspired)
+- **Less UI. More hierarchy. More whitespace.**
+- **Surfaces:** Prefer tonal shifts, spacing, and hairlines over cards, shadows, and nested containers
+- **Information density:** Primary info immediately legible; secondary quieter; tertiary on interaction
 - **Consistency:** Layouts, button styles, spacing, and interactions are cohesive throughout
 - **Scalability:** Components and layout are easy to expand as new features are added
 
 ### Color System
-- **Primary:** Green (success, progress)
-- **Secondary:** Purple (accent, premium)
-- **Neon accents:** Cyan, purple, green for highlights
-- **Background:** Dark grays with subtle gradients
-- **Text:** High contrast white/gray for readability
+- **Canvas:** Warm limestone / off-white (never cold gray or pure white)
+- **Ink / primary:** Deep botanical olive — typography, nav, primary actions, key data
+- **Supporting:** Warm stone variations, muted olive, soft beige/sand, subtle warm gray
+- **Charts:** Muted olive / sand / warm gray only
+- **Never use:** Purple SaaS gradients, neon green, bright wellness green, blue-heavy dashboards, rainbow macros, strong gradients, glossy surfaces, cyan/purple neon accents
 
 ---
 

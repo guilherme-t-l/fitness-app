@@ -101,11 +101,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center text-red-400 bg-black">
-        <div className="text-2xl font-bold mb-2">Authentication Error</div>
-        <div className="mb-4">{error}</div>
+      <div className="flex flex-col items-center justify-center min-h-screen text-center px-6 bg-background">
+        <div className="font-display text-2xl font-normal text-foreground mb-2">Authentication error</div>
+        <div className="mb-6 text-sm text-destructive">{error}</div>
         <button
-          className="px-4 py-2 bg-cyan-700 text-white rounded hover:bg-cyan-600"
+          className="px-5 py-2.5 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 transition-colors"
           onClick={() => window.location.reload()}
         >
           Reload

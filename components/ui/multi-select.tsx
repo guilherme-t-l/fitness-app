@@ -90,18 +90,18 @@ export function MultiSelect({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between bg-gray-800/50 border-gray-600 text-white",
+            "w-full justify-between min-h-10 h-auto py-2",
             className
           )}
           disabled={disabled}
         >
-          <div className="flex gap-1 flex-wrap">
-            {selected.length === 0 && placeholder}
+          <div className="flex gap-1 flex-wrap text-left font-normal">
+            {selected.length === 0 && <span className="text-muted-foreground">{placeholder}</span>}
             {selected.map((item) => (
               <Badge
                 variant="secondary"
                 key={item}
-                className="mr-1 mb-1 bg-green-600/20 hover:bg-green-600/30 text-green-400 border-green-500/30 transition-colors"
+                className="mr-1 mb-0.5"
                 onClick={(e) => {
                   e.stopPropagation()
                   handleUnselect(item)
@@ -111,7 +111,7 @@ export function MultiSelect({
                 <span
                   role="button"
                   tabIndex={0}
-                  className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all cursor-pointer"
+                  className="ml-1 ring-offset-background rounded-sm outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all cursor-pointer"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       handleUnselect(item)
@@ -128,7 +128,7 @@ export function MultiSelect({
                   }}
                   aria-label={`Remove ${item}`}
                 >
-                  <X className="h-3 w-3 text-green-400 hover:text-green-300 transition-colors" />
+                  <X className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
                 </span>
               </Badge>
             ))}
@@ -136,22 +136,21 @@ export function MultiSelect({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 bg-gray-800 border-gray-600">
-        <Command className="bg-gray-800">
+      <PopoverContent className="w-full p-0 border-border bg-popover">
+        <Command>
           <CommandInput
             placeholder={searchPlaceholder}
             value={inputValue}
             onValueChange={setInputValue}
-            className="bg-gray-800 border-gray-600 text-white"
           />
-          <CommandList className="bg-gray-800">
-            <CommandEmpty className="text-gray-400">{emptyText}</CommandEmpty>
-            <CommandGroup className="bg-gray-800">
+          <CommandList>
+            <CommandEmpty className="text-muted-foreground">{emptyText}</CommandEmpty>
+            <CommandGroup>
               {filteredOptions.map((option) => (
                 <CommandItem
                   key={option}
                   onSelect={() => handleSelect(option)}
-                  className="bg-gray-800 hover:bg-gray-700 text-white group relative"
+                  className="group relative"
                 >
                   <Check
                     className={cn(
@@ -163,7 +162,7 @@ export function MultiSelect({
                   {onDeleteOption && (
                     <button
                       onClick={(e) => handleDelete(option, e)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 p-1 hover:bg-red-600/20 rounded text-red-400 hover:text-red-300"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 p-1 hover:bg-destructive/10 rounded text-destructive"
                       title="Delete category"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -174,7 +173,7 @@ export function MultiSelect({
               {isCreateOptionVisible && (
                 <CommandItem
                   onSelect={handleCreate}
-                  className="bg-gray-800 hover:bg-green-600/20 text-green-400 border-t border-gray-600 transition-colors"
+                  className="text-primary border-t border-border"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Create "{inputValue.trim()}"

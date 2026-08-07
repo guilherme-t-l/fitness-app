@@ -8,17 +8,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent } from "@/components/ui/card"
 import { Plus, Trash2, Save, ChevronUp, ChevronDown, GripVertical } from "lucide-react"
 import { AutocompleteInput } from "@/components/ui/autocomplete-input"
 import { ExerciseDndWrapper } from "@/components/ui/exercise-dnd-wrapper"
 import { MultiSelect } from "@/components/ui/multi-select"
 import { calculateWorkoutDuration } from "@/lib/utils"
-import { useExercises } from "@/hooks/useExercises"
 import { useCategories } from "@/hooks/useCategories"
-import { ExerciseList } from "@/components/exercise/ExerciseList"
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider'
+import { cn } from "@/lib/utils"
 
 interface Exercise {
   id: string
@@ -166,26 +164,20 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
   }, [exercises, durationManuallyEdited])
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Basic Info */}
-      <div className="grid md:grid-cols-2 gap-4">
+    <form onSubmit={handleSubmit} className="space-y-8">
+      <div className="grid md:grid-cols-2 gap-5">
         <div className="space-y-2">
-          <Label htmlFor="workout-name" className="text-gray-300">
-            Workout Name
-          </Label>
+          <Label htmlFor="workout-name">Name</Label>
           <Input
             id="workout-name"
             value={workoutName}
             onChange={(e) => setWorkoutName(e.target.value)}
-            placeholder="e.g., Upper Body Strength"
-            className="bg-gray-800/50 border-gray-600 text-white"
+            placeholder="e.g., Upper Body"
             required
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="duration" className="text-gray-300">
-            Estimated Duration
-          </Label>
+          <Label htmlFor="duration">Duration</Label>
           <Input
             id="duration"
             value={estimatedDuration}
@@ -194,16 +186,15 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
               setDurationManuallyEdited(true)
             }}
             placeholder="e.g., 45 min"
-            className="bg-gray-800/50 border-gray-600 text-white"
           />
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid md:grid-cols-2 gap-5">
         <div className="space-y-2">
-          <Label className="text-gray-300">Workout Type</Label>
+          <Label>Type</Label>
           <Select value={workoutType} onValueChange={(value: any) => setWorkoutType(value)}>
-            <SelectTrigger className="bg-gray-800/50 border-gray-600 text-white">
+            <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -218,44 +209,40 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
           </Select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="category" className="text-gray-300 font-medium">
-            Categories
-          </Label>
+          <Label htmlFor="category">Categories</Label>
           <MultiSelect
             options={availableCategories}
             selected={categories}
             onChange={setCategories}
             onNewOption={handleNewCategory}
             onDeleteOption={handleDeleteCategory}
-            placeholder="Select or create categories..."
-            searchPlaceholder="Search categories..."
+            placeholder="Select or create…"
+            searchPlaceholder="Search categories…"
             emptyText="No categories found. Type to create a new one."
             disabled={categoriesLoading}
-            className="transition-all duration-200 focus-within:ring-2 focus-within:ring-green-500/50"
           />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description" className="text-gray-300">
-          Description
-        </Label>
+        <Label htmlFor="description">Description</Label>
         <Textarea
           id="description"
           value={workoutDescription}
           onChange={(e) => setWorkoutDescription(e.target.value)}
-          placeholder="Describe your workout..."
-          className="bg-gray-800/50 border-gray-600 text-white"
+          placeholder="Optional notes about this routine…"
+          className="min-h-[80px] resize-none"
         />
       </div>
 
-      {/* Exercises */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-white">Exercises ({exercises.length})</h3>
-          <Button type="button" onClick={addExercise} size="sm" className="primary-glow">
+        <div className="flex items-center justify-between border-t border-border/70 pt-6">
+          <h3 className="font-display text-xl font-normal text-foreground">
+            Exercises <span className="text-muted-foreground text-base">({exercises.length})</span>
+          </h3>
+          <Button type="button" onClick={addExercise} size="sm" variant="outline">
             <Plus className="h-4 w-4 mr-2" />
-            Add Exercise
+            Add
           </Button>
         </div>
 
@@ -263,138 +250,146 @@ export function CreateWorkoutForm({ onSubmit }: CreateWorkoutFormProps) {
           items={exercises.map((ex) => ({ id: ex.id, name: ex.name }))}
           onReorder={handleReorder}
         >
-          {({ id, name, attributes, listeners, isDragging }) => {
+          {({ id, listeners, isDragging }) => {
             const exercise = exercises.find((ex) => ex.id === id)!
+            const index = exercises.findIndex((ex) => ex.id === id)
             return (
-              <Card key={exercise.id} className={`bg-gray-800/30 border-gray-700 ${isDragging ? 'ring-2 ring-blue-500' : ''}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                      <GripVertical className="h-4 w-4 text-gray-500 cursor-grab" {...listeners} />
-                      <h4 className="text-white font-medium">{exercise.name ? exercise.name : 'New Exercise'}</h4>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => moveExerciseUp(exercises.findIndex((ex) => ex.id === id))}
-                        disabled={exercises.findIndex((ex) => ex.id === id) === 0}
-                        className="text-gray-400 hover:text-white disabled:opacity-30"
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => moveExerciseDown(exercises.findIndex((ex) => ex.id === id))}
-                        disabled={exercises.findIndex((ex) => ex.id === id) === exercises.length - 1}
-                        className="text-gray-400 hover:text-white disabled:opacity-30"
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" variant="destructive" size="sm" onClick={() => removeExercise(exercise.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+              <div
+                key={exercise.id}
+                className={cn(
+                  "border-b border-border/60 py-5 last:border-b-0",
+                  isDragging && "bg-muted/50 rounded-md ring-1 ring-border"
+                )}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <button type="button" className="text-muted-foreground cursor-grab touch-none p-1" {...listeners} aria-label="Drag to reorder">
+                      <GripVertical className="h-4 w-4" />
+                    </button>
+                    <span className="text-sm font-medium text-foreground">
+                      {exercise.name || "New exercise"}
+                    </span>
                   </div>
+                  <div className="flex items-center gap-0.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => moveExerciseUp(index)}
+                      disabled={index === 0}
+                      className="h-8 w-8 text-muted-foreground"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => moveExerciseDown(index)}
+                      disabled={index === exercises.length - 1}
+                      className="h-8 w-8 text-muted-foreground"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeExercise(exercise.id)}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
 
-                  <div className="grid md:grid-cols-6 gap-4 items-end">
-                    <div className="md:col-span-2">
-                      <Label className="text-gray-300 text-sm">Exercise</Label>
-                      <AutocompleteInput
-                        value={exercise.name}
-                        onChange={(value) => updateExercise(exercise.id, "name", value)}
-                        placeholder="Type exercise name..."
-                        suggestions={exerciseLibrary}
-                      />
-                    </div>
+                <div className="space-y-3 pl-7">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Exercise</Label>
+                    <AutocompleteInput
+                      value={exercise.name}
+                      onChange={(value) => updateExercise(exercise.id, "name", value)}
+                      placeholder="Type exercise name…"
+                      suggestions={exerciseLibrary}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
-                      <Label className="text-gray-300 text-sm">Sets</Label>
+                      <Label className="text-xs text-muted-foreground">Sets</Label>
                       <Input
                         type="number"
                         value={exercise.sets}
                         onChange={(e) => updateExercise(exercise.id, "sets", Number.parseInt(e.target.value))}
-                        className="bg-gray-700 border-gray-600 text-white"
                       />
                     </div>
                     <div>
-                      <Label className="text-gray-300 text-sm">Reps</Label>
+                      <Label className="text-xs text-muted-foreground">Reps</Label>
                       <Input
                         value={exercise.reps}
                         onChange={(e) => updateExercise(exercise.id, "reps", e.target.value)}
                         placeholder="10-12"
-                        className="bg-gray-700 border-gray-600 text-white"
                       />
                     </div>
                     <div>
-                      <Label className="text-gray-300 text-sm">Weight</Label>
+                      <Label className="text-xs text-muted-foreground">Weight</Label>
                       <Input
                         value={exercise.weight || ""}
                         onChange={(e) => updateExercise(exercise.id, "weight", e.target.value)}
                         placeholder="kg/lbs"
-                        className="bg-gray-700 border-gray-600 text-white"
                       />
                     </div>
                     <div>
-                      <Label className="text-gray-300 text-sm">Rest Time</Label>
+                      <Label className="text-xs text-muted-foreground">Rest</Label>
                       <Input
                         value={exercise.restTime || ""}
                         onChange={(e) => updateExercise(exercise.id, "restTime", e.target.value)}
                         placeholder="60s"
-                        className="bg-gray-700 border-gray-600 text-white"
                       />
                     </div>
                   </div>
-
-                  <div className="grid md:grid-cols-2 gap-4 mt-4">
+                  <div className="grid sm:grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-gray-300 text-sm">Machine Position</Label>
+                      <Label className="text-xs text-muted-foreground">Machine position</Label>
                       <Input
                         type="number"
                         value={exercise.adjustment || ""}
                         onChange={(e) => updateExercise(exercise.id, "adjustment", e.target.value)}
-                        placeholder="e.g., 5, 12"
-                        className="bg-gray-700 border-gray-600 text-white"
+                        placeholder="e.g., 5"
                       />
                     </div>
                     <div>
-                      <Label className="text-gray-300 text-sm">Notes</Label>
+                      <Label className="text-xs text-muted-foreground">Notes</Label>
                       <Input
                         value={exercise.description || ""}
                         onChange={(e) => updateExercise(exercise.id, "description", e.target.value)}
-                        placeholder="Optional notes, such as a brief exercise description"
-                        className="bg-gray-700 border-gray-600 text-white"
+                        placeholder="Optional"
                       />
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )
           }}
         </ExerciseDndWrapper>
 
         {exercises.length === 0 && (
-          <div className="text-center py-8 text-gray-400">
-            <p>No exercises added yet</p>
-            <p className="text-sm">Click "Add Exercise" to get started</p>
+          <div className="text-center py-10 text-muted-foreground">
+            <p className="text-sm">No exercises yet</p>
+            <p className="text-xs mt-1">Add one to begin shaping this routine.</p>
           </div>
         )}
       </div>
 
-      {/* Submit */}
-      <div className="flex justify-end space-x-4">
+      <div className="flex justify-end pt-2 border-t border-border/70">
         <Button
           type="submit"
-          className="primary-glow text-white font-semibold"
           disabled={!workoutName || exercises.length === 0 || saving}
         >
           <Save className="h-4 w-4 mr-2" />
-          {saving ? 'Saving...' : 'Create Workout'}
+          {saving ? 'Saving…' : 'Create workout'}
         </Button>
       </div>
-      {formError && <div className="text-red-400 text-sm mb-2">{formError}</div>}
+      {formError && <div className="text-destructive text-sm">{formError}</div>}
     </form>
   )
 }
