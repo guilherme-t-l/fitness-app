@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import NavigationBar from "@/components/navigation-bar"
 import { AuthProvider } from '@/components/AuthProvider'
+import { Toaster } from "@/components/ui/toaster"
 
 const figtree = Figtree({
   subsets: ["latin"],
@@ -36,6 +37,7 @@ export default function RootLayout({
           <AuthProvider>
             <NavigationBar />
             <main className="pt-16 min-h-screen">{children}</main>
+            <Toaster />
           </AuthProvider>
         </ThemeProvider>
       </body>

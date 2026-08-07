@@ -20,28 +20,41 @@ export default function WorkoutDetailPage() {
   const workoutId = params.id as string
 
   useEffect(() => {
-    if (!loading && workouts.length > 0) {
-      const foundWorkout = workouts.find(w => w.id === workoutId)
-      if (foundWorkout) {
-        setWorkout(foundWorkout)
-        setNotFound(false)
-      } else {
-        setNotFound(true)
-      }
+    if (loading) return
+    const foundWorkout = workouts.find(w => w.id === workoutId)
+    if (foundWorkout) {
+      setWorkout(foundWorkout)
+      setNotFound(false)
+    } else {
+      setWorkout(null)
+      setNotFound(true)
     }
   }, [workoutId, workouts, loading])
 
-  const handleCompleteWorkout = async (opts: { durationMinutes: number; notes: string }) => {
-    if (workout) {
-      try {
-        await completeWorkout(workout.id, {
-          durationMinutes: opts.durationMinutes,
-          notes: opts.notes,
-        })
-        router.push('/workouts')
-      } catch (error) {
-        console.error('Failed to complete workout:', error)
-      }
+  const handleCompleteWorkout = async (opts: {
+    durationMinutes: number
+    notes: string
+    performances?: Array<{
+      exerciseName: string
+      setsCompleted: number
+      repsPerformed?: string
+      weightUsed?: string
+      notes?: string
+    }>
+  }) => {
+    if (!workout) {
+      throw new Error('Workout not loaded')
+    }
+    try {
+      await completeWorkout(workout.id, {
+        durationMinutes: opts.durationMinutes,
+        notes: opts.notes,
+        performances: opts.performances,
+      })
+      router.push('/workouts')
+    } catch (error) {
+      console.error('Failed to complete workout:', error)
+      throw error
     }
   }
 

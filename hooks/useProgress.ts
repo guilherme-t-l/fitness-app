@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { databaseService, type WorkoutStats, type CategoryBreakdown, type WorkoutHistory } from '@/lib/database'
 
 export function useProgress(userId?: string) {
@@ -19,21 +19,14 @@ export function useProgress(userId?: string) {
     try {
       setLoading(true)
       setError(null)
-      
-      console.log('Loading progress data...')
-      
+
       // Load all progress data in parallel, pass userId if needed
       const [statsData, categoryData, historyData] = await Promise.all([
         databaseService.getWorkoutStats(userId),
         databaseService.getCategoryBreakdown(userId),
-        databaseService.getWorkoutHistory(20, userId)
+        // Pull enough history for monthly trends (not just the chart week)
+        databaseService.getWorkoutHistory(365, userId)
       ])
-
-      console.log('Progress data loaded successfully:', {
-        stats: statsData,
-        categories: categoryData,
-        history: historyData
-      })
 
       setStats(statsData)
       setCategoryBreakdown(categoryData)
@@ -67,46 +60,64 @@ export function useProgress(userId?: string) {
     .filter(cat => cat.completionCount > 0)
     .slice(0, 5)
 
-  // Get recent workout activity for charts
-  const getWeeklyActivity = () => {
+  const weeklyActivity = useMemo(() => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     const now = new Date()
-    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + 1)
-    
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7))
+    startOfWeek.setHours(0, 0, 0, 0)
+
     return days.map((day, index) => {
       const date = new Date(startOfWeek)
       date.setDate(date.getDate() + index)
-      
-      const workoutsOnDay = workoutHistory.filter(workout => {
+
+      const dayWorkouts = workoutHistory.filter(workout => {
         const workoutDate = new Date(workout.completedAt)
         return workoutDate.toDateString() === date.toDateString()
-      }).length
+      })
+
+      const duration = dayWorkouts.reduce(
+        (sum, workout) => sum + (workout.durationMinutes || 0),
+        0
+      )
 
       return {
         day,
-        workouts: workoutsOnDay,
-        duration: workoutsOnDay * 45 // Average duration estimate
+        workouts: dayWorkouts.length,
+        duration
       }
     })
-  }
+  }, [workoutHistory])
 
-  const getMonthlyTrend = () => {
+  const monthlyTrend = useMemo(() => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const currentMonth = new Date().getMonth()
-    
-    return months.slice(Math.max(0, currentMonth - 5), currentMonth + 1).map(month => {
-      // This would ideally come from actual monthly data
-      // For now, we'll use estimated data based on current stats
-      const estimatedWorkouts = Math.floor(Math.random() * 25) + 10
-      const estimatedDuration = Math.floor(Math.random() * 15) + 35
-      
+    const now = new Date()
+    const currentMonth = now.getMonth()
+    const currentYear = now.getFullYear()
+
+    return Array.from({ length: 6 }, (_, offset) => {
+      const monthIndex = (currentMonth - 5 + offset + 12) % 12
+      const year = currentMonth - 5 + offset < 0 ? currentYear - 1 : currentYear
+      const label = months[monthIndex]
+
+      const monthWorkouts = workoutHistory.filter(workout => {
+        const completedAt = new Date(workout.completedAt)
+        return completedAt.getMonth() === monthIndex && completedAt.getFullYear() === year
+      })
+
+      const totalDuration = monthWorkouts.reduce(
+        (sum, workout) => sum + (workout.durationMinutes || 0),
+        0
+      )
+      const avgDuration =
+        monthWorkouts.length > 0 ? Math.round(totalDuration / monthWorkouts.length) : 0
+
       return {
-        month,
-        workouts: estimatedWorkouts,
-        avgDuration: estimatedDuration
+        month: label,
+        workouts: monthWorkouts.length,
+        avgDuration
       }
     })
-  }
+  }, [workoutHistory])
 
   return {
     // Data
@@ -122,8 +133,8 @@ export function useProgress(userId?: string) {
     monthlyProgress,
     
     // Chart data
-    weeklyActivity: getWeeklyActivity(),
-    monthlyTrend: getMonthlyTrend(),
+    weeklyActivity,
+    monthlyTrend,
     
     // State
     loading,
@@ -133,4 +144,4 @@ export function useProgress(userId?: string) {
     refreshProgress,
     loadProgressData
   }
-} 
+}
