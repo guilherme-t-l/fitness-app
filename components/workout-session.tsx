@@ -34,7 +34,17 @@ interface Workout {
 
 interface WorkoutSessionProps {
   workout: Workout
-  onComplete: (opts: { durationMinutes: number; notes: string }) => void | Promise<void>
+  onComplete: (opts: {
+    durationMinutes: number
+    notes: string
+    performances?: Array<{
+      exerciseName: string
+      setsCompleted: number
+      repsPerformed?: string
+      weightUsed?: string
+      notes?: string
+    }>
+  }) => void | Promise<void>
   onExit: () => void
   onSaveChanges: (workoutId: string, updatedExercises: Exercise[]) => void | Promise<void>
 }
@@ -69,10 +79,20 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   const [saveTimeouts, setSaveTimeouts] = useState<Map<string, NodeJS.Timeout>>(new Map())
   const [showConfirm, setShowConfirm] = useState(false)
   const [completing, setCompleting] = useState(false)
-  const navFallbackTimeout = useRef<NodeJS.Timeout | null>(null)
+  const [exiting, setExiting] = useState(false)
+  const exercisesRef = useRef(exercises)
+  const saveTimeoutsRef = useRef(saveTimeouts)
   const { toast } = useToast()
 
   const { restTimers, restActive, handleRestTimer, formatRestTime, parseRestTime } = useRestTimer()
+
+  useEffect(() => {
+    exercisesRef.current = exercises
+  }, [exercises])
+
+  useEffect(() => {
+    saveTimeoutsRef.current = saveTimeouts
+  }, [saveTimeouts])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -83,18 +103,9 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
 
   useEffect(() => {
     return () => {
-      saveTimeouts.forEach((timeout: NodeJS.Timeout) => clearTimeout(timeout))
+      saveTimeoutsRef.current.forEach((timeout: NodeJS.Timeout) => clearTimeout(timeout))
     }
-  }, [saveTimeouts])
-
-  useEffect(() => {
-    exercises.forEach((ex: ExerciseState) => {
-      parseRestTime(ex.restTime)
-    })
-  }, [exercises, parseRestTime])
-
-  // silence unused ref (kept for parity with prior session behavior)
-  void navFallbackTimeout
+  }, [])
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000)
@@ -107,16 +118,8 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
     return `${minutes}:${(seconds % 60).toString().padStart(2, "0")}`
   }
 
-  const toggleExerciseComplete = (exerciseId: string) => {
-    setExercises(
-      exercises.map((ex: ExerciseState) =>
-        ex.id === exerciseId ? { ...ex, completed: !ex.completed, currentSets: ex.completed ? 0 : ex.sets } : ex
-      ),
-    )
-  }
-
-  const saveExerciseImmediately = async (exerciseId: string) => {
-    const updatedExercises: Exercise[] = exercises.map((ex: ExerciseState) => ({
+  const toPersistedExercises = (source: ExerciseState[]): Exercise[] =>
+    source.map((ex) => ({
       id: ex.id,
       name: ex.actualName || ex.name,
       sets: ex.sets,
@@ -127,6 +130,19 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
       adjustment: ex.adjustment,
       description: ex.description,
     }))
+
+  const toggleExerciseComplete = (exerciseId: string) => {
+    setExercises((prev) =>
+      prev.map((ex) =>
+        ex.id === exerciseId
+          ? { ...ex, completed: !ex.completed, currentSets: ex.completed ? 0 : ex.sets }
+          : ex
+      )
+    )
+  }
+
+  const saveExerciseImmediately = async (exerciseId: string, snapshot?: ExerciseState[]) => {
+    const updatedExercises = toPersistedExercises(snapshot ?? exercisesRef.current)
 
     try {
       await Promise.resolve(onSaveChanges(workout.id, updatedExercises))
@@ -150,53 +166,82 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
   }
 
   const updateExercise = (exerciseId: string, field: keyof ExerciseState, value: string) => {
-    setExercises(exercises.map((ex: ExerciseState) => (ex.id === exerciseId ? { ...ex, [field]: value } : ex)))
+    setExercises((prev) => {
+      const next = prev.map((ex) => (ex.id === exerciseId ? { ...ex, [field]: value } : ex))
+      exercisesRef.current = next
 
-    const existingTimeout = saveTimeouts.get(exerciseId)
-    if (existingTimeout) {
-      clearTimeout(existingTimeout)
-    }
+      const existingTimeout = saveTimeoutsRef.current.get(exerciseId)
+      if (existingTimeout) {
+        clearTimeout(existingTimeout)
+      }
 
-    const newTimeout = setTimeout(() => {
-      void saveExerciseImmediately(exerciseId)
-      setSaveTimeouts((prev: Map<string, NodeJS.Timeout>) => {
-        const newMap = new Map(prev)
-        newMap.delete(exerciseId)
+      const newTimeout = setTimeout(() => {
+        void saveExerciseImmediately(exerciseId, exercisesRef.current)
+        setSaveTimeouts((timeoutPrev) => {
+          const newMap = new Map(timeoutPrev)
+          newMap.delete(exerciseId)
+          saveTimeoutsRef.current = newMap
+          return newMap
+        })
+      }, 1000)
+
+      setSaveTimeouts((timeoutPrev) => {
+        const newMap = new Map(timeoutPrev).set(exerciseId, newTimeout)
+        saveTimeoutsRef.current = newMap
         return newMap
       })
-    }, 1000)
 
-    setSaveTimeouts((prev: Map<string, NodeJS.Timeout>) => new Map(prev).set(exerciseId, newTimeout))
+      return next
+    })
   }
 
   const completedExercises = exercises.filter((ex: ExerciseState) => ex.completed).length
   const progressPercentage = (completedExercises / exercises.length) * 100
 
   const saveChangesToWorkout = async () => {
-    const updatedExercises: Exercise[] = exercises.map((ex: ExerciseState) => ({
-      id: ex.id,
-      name: ex.actualName || ex.name,
-      sets: ex.sets,
-      reps: ex.actualReps || ex.reps,
-      weight: ex.actualWeight || ex.weight,
-      restTime: ex.restTime,
-      notes: ex.notes,
-      adjustment: ex.adjustment,
-      description: ex.description,
-    }))
+    await Promise.resolve(onSaveChanges(workout.id, toPersistedExercises(exercisesRef.current)))
+  }
 
-    await Promise.resolve(onSaveChanges(workout.id, updatedExercises))
+  const handleExit = async () => {
+    if (exiting || completing) return
+    setExiting(true)
+    try {
+      saveTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout))
+      saveTimeoutsRef.current = new Map()
+      setSaveTimeouts(new Map())
+      await saveChangesToWorkout()
+      onExit()
+    } catch {
+      setExiting(false)
+      toast({
+        title: "Could not save before exit",
+        description: "Check your connection and try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleCompleteWithConfirm = async () => {
     setCompleting(true)
     try {
+      saveTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout))
+      saveTimeoutsRef.current = new Map()
+      setSaveTimeouts(new Map())
+
       await saveChangesToWorkout()
 
-      const durationMinutes = Math.floor((currentTime - startTime) / 1000 / 60)
-      const notes = `Completed ${exercises.length} exercises`
+      const latest = exercisesRef.current
+      const durationMinutes = Math.max(1, Math.floor((Date.now() - startTime) / 1000 / 60))
+      const notes = `Completed ${latest.length} exercises`
+      const performances = latest.map((ex) => ({
+        exerciseName: ex.actualName || ex.name,
+        setsCompleted: ex.completed ? ex.sets : ex.currentSets || 0,
+        repsPerformed: ex.actualReps || ex.reps,
+        weightUsed: ex.actualWeight || ex.weight,
+        notes: ex.notes,
+      }))
 
-      await Promise.resolve(onComplete({ durationMinutes, notes }))
+      await Promise.resolve(onComplete({ durationMinutes, notes, performances }))
 
       setShowConfirm(false)
       setCompleting(false)
@@ -227,13 +272,13 @@ export function WorkoutSession({ workout, onComplete, onExit, onSaveChanges }: W
             variant="ghost"
             size="sm"
             onClick={() => {
-              void saveChangesToWorkout()
-              onExit()
+              void handleExit()
             }}
+            disabled={exiting || completing}
             className="text-muted-foreground hover:text-foreground -ml-2"
           >
             <ArrowLeft className="h-4 w-4 mr-1.5" />
-            Exit
+            {exiting ? "Saving…" : "Exit"}
           </Button>
           <p className="font-sans text-2xl sm:text-3xl tracking-tight text-foreground tabular-nums">
             {formatTime(currentTime - startTime)}

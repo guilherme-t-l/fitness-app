@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react"
+import { parseRestTime as parseRestTimeUtil } from "@/lib/utils"
 
 // Custom hook for workout session timer
 export function useTimer(startTimestamp: number) {
@@ -36,12 +37,7 @@ export function useRestTimer() {
   const [totalRestTimes, setTotalRestTimes] = useState<Record<string, number>>({})
   const updateInterval = useRef<NodeJS.Timeout | null>(null)
 
-  // Parse rest time string to seconds
-  const parseRestTime = (restTime?: string): number => {
-    if (!restTime) return 60
-    const match = restTime.match(/(\d+)/)
-    return match ? parseInt(match[1], 10) : 60
-  }
+  const parseRestTime = (restTime?: string): number => parseRestTimeUtil(restTime)
 
   // Calculate remaining time based on actual elapsed time
   const calculateRemainingTime = (exerciseId: string): number => {

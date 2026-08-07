@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
-import { DEFAULT_USER_ID } from '@/lib/utils';
 import { createStarterWorkoutsForUser } from '@/lib/database';
 
 interface AuthContextType {
@@ -26,22 +25,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Helper to initialize session and create starter workouts if needed
   const initializeSession = async (session: any) => {
     try {
-      setUser(session?.user ?? null);
-      setIsGuest(!session?.user);
-      if (session?.user) {
-        // Check if user has any workouts
-        const { data: workouts, error: workoutsError } = await supabase
-          .from('workouts')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .limit(1);
-        if (workoutsError) throw workoutsError;
-        if (workouts && workouts.length === 0) {
-          await createStarterWorkoutsForUser(session.user.id);
+      // Drop anonymous sessions so guests always share the default guest account
+      if (session?.user?.is_anonymous) {
+        await supabase.auth.signOut();
+        session = null;
+      }
+
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+      setIsGuest(!nextUser);
+
+      if (nextUser) {
+        try {
+          const { data: workouts, error: workoutsError } = await supabase
+            .from('workouts')
+            .select('id')
+            .eq('user_id', nextUser.id)
+            .limit(1);
+          if (workoutsError) throw workoutsError;
+          if (workouts && workouts.length === 0) {
+            await createStarterWorkoutsForUser(nextUser.id);
+          }
+        } catch (starterErr: any) {
+          // Soft-fail: keep the app usable if starter seeding fails
+          console.error('Starter workout setup failed:', starterErr);
+          setError(starterErr?.message || 'Could not create starter workouts.');
         }
       }
-      setError(null);
     } catch (err: any) {
+      console.error('Failed to initialize user session:', err);
       setError(err?.message || 'Failed to initialize user session.');
     } finally {
       setLoading(false);
@@ -50,18 +62,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let unsubscribed = false;
-    // Listen for auth state changes
+
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!unsubscribed) {
-        initializeSession(session);
+        void initializeSession(session);
       }
     });
-    // Initial load
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!unsubscribed) {
-        initializeSession(session);
+        void initializeSession(session);
       }
     });
+
     return () => {
       unsubscribed = true;
       listener.subscription.unsubscribe();
@@ -99,23 +112,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center px-6 bg-background">
-        <div className="font-display text-2xl font-normal text-foreground mb-2">Authentication error</div>
-        <div className="mb-6 text-sm text-destructive">{error}</div>
-        <button
-          className="px-5 py-2.5 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 transition-colors"
-          onClick={() => window.location.reload()}
-        >
-          Reload
-        </button>
-      </div>
-    );
-  }
-
   return (
     <AuthContext.Provider value={{ user, loading, login, signup, logout, isGuest, error }}>
+      {error ? (
+        <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 max-w-md w-[calc(100%-2rem)] rounded-md border border-border bg-card px-4 py-3 text-sm shadow-sm">
+          <div className="font-medium text-foreground mb-1">Something went wrong</div>
+          <div className="text-muted-foreground mb-2">{error}</div>
+          <button
+            className="text-primary underline text-xs"
+            onClick={() => setError(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
       {children}
     </AuthContext.Provider>
   );
@@ -125,4 +135,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
-} 
+}

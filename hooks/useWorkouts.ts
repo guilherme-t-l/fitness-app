@@ -67,11 +67,26 @@ export function useWorkouts(userId?: string, enabled = true) {
   // Complete workout
   const completeWorkout = useCallback(async (
     id: string,
-    options?: { durationMinutes?: number; notes?: string }
+    options?: {
+      durationMinutes?: number
+      notes?: string
+      performances?: Array<{
+        exerciseName: string
+        setsCompleted: number
+        repsPerformed?: string
+        weightUsed?: string
+        notes?: string
+      }>
+    }
   ) => {
     try {
       setError(null)
-      await databaseService.updateWorkoutCompletion(id, options?.durationMinutes, options?.notes)
+      await databaseService.updateWorkoutCompletion(
+        id,
+        options?.durationMinutes,
+        options?.notes,
+        options?.performances
+      )
       setWorkouts(prev => prev.map(w => 
         w.id === id 
           ? { 

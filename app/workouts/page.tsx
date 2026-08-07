@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
@@ -18,6 +18,7 @@ type Workout = FrontendWorkout
 export default function WorkoutsPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [searchTerm, setSearchTerm] = useState("")
   const { 
     workouts, 
@@ -30,6 +31,13 @@ export default function WorkoutsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
+
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setIsCreateDialogOpen(true)
+      router.replace("/workouts", { scroll: false })
+    }
+  }, [searchParams, router])
 
   const filteredWorkouts = workouts.filter(
     (workout) =>

@@ -7,7 +7,7 @@ import { supabase } from './supabase'
 import type { Database } from './supabase'
 import { getSupabaseErrorMessage } from './supabaseError'
 import { runSerializedWorkoutExerciseWrite } from './workoutExerciseWriteQueue'
-import { getCurrentUserId, DEFAULT_USER_ID } from './utils'
+import { getCurrentUserId } from './utils'
 
 type Workout = Database['public']['Tables']['workouts']['Row']
 type WorkoutInsert = Database['public']['Tables']['workouts']['Insert']
@@ -219,9 +219,15 @@ export const databaseService = {
   },
 
   // Create new workout with exercises
-  async createWorkout(workoutData: Omit<FrontendWorkout, 'id' | 'createdAt' | 'completions'>): Promise<FrontendWorkout> {
+  async createWorkout(
+    workoutData: Omit<FrontendWorkout, 'id' | 'createdAt' | 'completions'>,
+    overrideUserId?: string
+  ): Promise<FrontendWorkout> {
     try {
       const { workout, exercises } = await convertWorkoutToDatabase(workoutData)
+      if (overrideUserId) {
+        workout.user_id = overrideUserId
+      }
 
       // Insert workout first
       const { data: newWorkout, error: workoutError } = await supabase
@@ -354,8 +360,19 @@ export const databaseService = {
     }
   },
 
-  // Update workout completion with detailed history
-  async updateWorkoutCompletion(id: string, durationMinutes?: number, notes?: string): Promise<void> {
+  // Update workout completion with detailed history (+ optional per-exercise rows)
+  async updateWorkoutCompletion(
+    id: string,
+    durationMinutes?: number,
+    notes?: string,
+    performances?: Array<{
+      exerciseName: string
+      setsCompleted: number
+      repsPerformed?: string
+      weightUsed?: string
+      notes?: string
+    }>
+  ): Promise<void> {
     try {
       // Fetch current completions
       const { data: workout, error: fetchError } = await supabase
@@ -393,7 +410,7 @@ export const databaseService = {
 
       // Create workout history record (user_id required for RLS when not logged in)
       const historyUserId = await getCurrentUserId()
-      const { error: historyError } = await supabase
+      const { data: historyRow, error: historyError } = await supabase
         .from('workout_history')
         .insert({
           workout_id: id,
@@ -401,9 +418,58 @@ export const databaseService = {
           notes: notes,
           user_id: historyUserId,
         })
+        .select('id')
+        .single()
       if (historyError) {
         console.error('Error creating workout history:', historyError)
         throw historyError
+      }
+
+      if (performances && performances.length > 0 && historyRow?.id) {
+        const { data: currentExercises, error: exercisesError } = await supabase
+          .from('exercises')
+          .select('id, name, order_index')
+          .eq('workout_id', id)
+          .order('order_index', { ascending: true })
+        if (exercisesError) {
+          console.error('Error loading exercises for performance rows:', exercisesError)
+          throw exercisesError
+        }
+
+        const usedExerciseIds = new Set<string>()
+        const performanceRows = performances
+          .map((performance, index) => {
+            const byName = currentExercises?.find(
+              (exercise) =>
+                exercise.name === performance.exerciseName && !usedExerciseIds.has(exercise.id)
+            )
+            const indexed = currentExercises?.[index]
+            const byIndex =
+              !byName && indexed && !usedExerciseIds.has(indexed.id) ? indexed : undefined
+            const matched = byName || byIndex
+            if (!matched) return null
+            usedExerciseIds.add(matched.id)
+            return {
+              workout_history_id: historyRow.id,
+              exercise_id: matched.id,
+              exercise_name: performance.exerciseName,
+              sets_completed: performance.setsCompleted,
+              reps_performed: performance.repsPerformed || null,
+              weight_used: performance.weightUsed || null,
+              notes: performance.notes || null,
+            }
+          })
+          .filter((row): row is NonNullable<typeof row> => row !== null)
+
+        if (performanceRows.length > 0) {
+          const { error: performanceError } = await supabase
+            .from('exercise_performance')
+            .insert(performanceRows)
+          if (performanceError) {
+            console.error('Error creating exercise performance:', performanceError)
+            throw performanceError
+          }
+        }
       }
     } catch (error) {
       console.error('Error updating workout completion:', error)
@@ -411,71 +477,158 @@ export const databaseService = {
     }
   },
 
-  // Get workout statistics
-  async getWorkoutStats(userId?: string): Promise<WorkoutStats> {
+  async getWorkoutStatsFromTables(userId: string): Promise<WorkoutStats> {
+    const { data: workouts, error: workoutsError } = await supabase
+      .from('workouts')
+      .select('id, completions')
+      .eq('user_id', userId)
+    if (workoutsError) throw workoutsError
+
+    const { data: history, error: historyError } = await supabase
+      .from('workout_history')
+      .select('completed_at')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false })
+    if (historyError) throw historyError
+
+    const now = Date.now()
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000
+    const monthAgo = now - 30 * 24 * 60 * 60 * 1000
+    const completedDates = (history || [])
+      .map((row) => new Date(row.completed_at).getTime())
+      .filter((ts) => !Number.isNaN(ts))
+
+    // Simple consecutive-day streak from most recent completion
+    let currentStreak = 0
+    if (completedDates.length > 0) {
+      const uniqueDays = Array.from(
+        new Set(completedDates.map((ts) => new Date(ts).toDateString()))
+      ).map((day) => new Date(day))
+      uniqueDays.sort((a, b) => b.getTime() - a.getTime())
+
+      const latestDay = uniqueDays[0]
+      if (latestDay) {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const cursor = new Date(latestDay)
+        cursor.setHours(0, 0, 0, 0)
+        const dayMs = 24 * 60 * 60 * 1000
+        // Streak only counts if last workout was today or yesterday
+        if (today.getTime() - cursor.getTime() <= dayMs) {
+          currentStreak = 1
+          for (let i = 1; i < uniqueDays.length; i++) {
+            const prevDay = uniqueDays[i - 1]
+            const currDay = uniqueDays[i]
+            if (!prevDay || !currDay) break
+            const prev = new Date(prevDay)
+            const curr = new Date(currDay)
+            prev.setHours(0, 0, 0, 0)
+            curr.setHours(0, 0, 0, 0)
+            if (prev.getTime() - curr.getTime() === dayMs) currentStreak += 1
+            else break
+          }
+        }
+      }
+    }
+
+    return {
+      totalWorkouts: workouts?.length || 0,
+      totalCompletions: (workouts || []).reduce((sum, w) => sum + (w.completions || 0), 0),
+      thisWeekWorkouts: completedDates.filter((ts) => ts >= weekAgo).length,
+      thisMonthWorkouts: completedDates.filter((ts) => ts >= monthAgo).length,
+      currentStreak,
+    }
+  },
+
+  // Get workout statistics (RPC scopes via auth.uid; table fallback for local guests)
+  async getWorkoutStats(_userId?: string): Promise<WorkoutStats> {
     try {
-      // If you have a user-specific stats RPC, pass userId; otherwise, filter in the RPC or query
-      const user_id = userId || await getCurrentUserId();
-      const { data, error } = await supabase
-        .rpc('get_workout_stats', { user_id });
-      
-      if (error) throw error
-      if (!data || data.length === 0) {
-        return {
-          totalWorkouts: 0,
-          totalCompletions: 0,
-          thisWeekWorkouts: 0,
-          thisMonthWorkouts: 0,
-          currentStreak: 0
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        const { data, error } = await supabase.rpc('get_workout_stats')
+        if (error) throw error
+        if (data && data.length > 0) {
+          const stats = data[0]
+          return {
+            totalWorkouts: Number(stats.total_workouts) || 0,
+            totalCompletions: Number(stats.total_completions) || 0,
+            thisWeekWorkouts: Number(stats.this_week_workouts) || 0,
+            thisMonthWorkouts: Number(stats.this_month_workouts) || 0,
+            currentStreak: Number(stats.current_streak) || 0
+          }
         }
       }
 
-      const stats = data[0]
-      return {
-        totalWorkouts: Number(stats.total_workouts) || 0,
-        totalCompletions: Number(stats.total_completions) || 0,
-        thisWeekWorkouts: Number(stats.this_week_workouts) || 0,
-        thisMonthWorkouts: Number(stats.this_month_workouts) || 0,
-        currentStreak: Number(stats.current_streak) || 0
-      }
+      const userId = _userId || await getCurrentUserId()
+      return await this.getWorkoutStatsFromTables(userId)
     } catch (error) {
       console.error('Error fetching workout stats:', error)
       throw error
     }
   },
 
-  // Get category breakdown
-  async getCategoryBreakdown(userId?: string): Promise<CategoryBreakdown[]> {
+  // Get category breakdown (RPC scopes via auth.uid; table fallback for local guests)
+  async getCategoryBreakdown(_userId?: string): Promise<CategoryBreakdown[]> {
     try {
-      const user_id = userId || await getCurrentUserId();
-      const { data, error } = await supabase
-        .rpc('get_category_breakdown', { user_id });
-      
-      if (error) throw error
-      if (!data) return []
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        const { data, error } = await supabase.rpc('get_category_breakdown')
+        if (error) throw error
+        if (data) {
+          return data.map((item: any) => ({
+            category: item.category,
+            workoutCount: Number(item.workout_count) || 0,
+            completionCount: Number(item.completion_count) || 0
+          }))
+        }
+      }
 
-      return data.map((item: any) => ({
-        category: item.category,
-        workoutCount: Number(item.workout_count) || 0,
-        completionCount: Number(item.completion_count) || 0
-      }))
+      const userId = _userId || await getCurrentUserId()
+      const { data: workouts, error } = await supabase
+        .from('workouts')
+        .select('categories, completions')
+        .eq('user_id', userId)
+      if (error) throw error
+
+      const breakdown = new Map<string, { workoutCount: number; completionCount: number }>()
+      for (const workout of workouts || []) {
+        const categories = Array.isArray(workout.categories) ? workout.categories : []
+        for (const category of categories) {
+          if (typeof category !== 'string' || !category) continue
+          const current = breakdown.get(category) || { workoutCount: 0, completionCount: 0 }
+          current.workoutCount += 1
+          current.completionCount += workout.completions || 0
+          breakdown.set(category, current)
+        }
+      }
+
+      return Array.from(breakdown.entries())
+        .map(([category, values]) => ({ category, ...values }))
+        .sort((a, b) => b.completionCount - a.completionCount)
     } catch (error) {
       console.error('Error fetching category breakdown:', error)
       throw error
     }
   },
 
-  // Get all unique categories
-  async getAllCategories(userId?: string): Promise<string[]> {
+  // Get all unique categories (RPC scopes via auth.uid; table fallback for local guests)
+  async getAllCategories(_userId?: string): Promise<string[]> {
     try {
-      const user_id = userId || await getCurrentUserId();
-      const { data, error } = await supabase
-        .rpc('get_all_categories', { user_id });
-      
-      if (error) throw error
-      if (!data) return []
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        const { data, error } = await supabase.rpc('get_all_categories')
+        if (error) throw error
+        if (data) return data.map((item: any) => item.name)
+      }
 
-      return data.map((item: any) => item.name)
+      const userId = _userId || await getCurrentUserId()
+      const { data, error } = await supabase
+        .from('categories')
+        .select('name')
+        .or(`user_id.eq.${userId},user_id.is.null`)
+        .order('usage_count', { ascending: false })
+      if (error) throw error
+      return (data || []).map((item) => item.name)
     } catch (error) {
       console.error('Error fetching all categories:', error)
       throw error
@@ -598,7 +751,7 @@ export const databaseService = {
   }
 } 
 
-export async function createStarterWorkoutsForUser(user_id: string) {
+export async function createStarterWorkoutsForUser(userId: string) {
   // Define starter workouts
   const starterWorkouts = [
     {
@@ -630,38 +783,14 @@ export async function createStarterWorkoutsForUser(user_id: string) {
   ];
 
   for (const workout of starterWorkouts) {
-    await databaseService.createWorkout({
-      ...workout,
-      id: undefined,
-      createdAt: new Date().toISOString(),
-      completions: 0,
-    } as any); // Remove user_id argument, handled internally
+    await databaseService.createWorkout(
+      {
+        ...workout,
+        id: undefined,
+        createdAt: new Date().toISOString(),
+        completions: 0,
+      } as any,
+      userId
+    )
   }
 }
-
-// Patch createWorkout to accept an optional user_id for this use case
-const originalCreateWorkout = databaseService.createWorkout;
-databaseService.createWorkout = async function(workoutData: any, overrideUserId?: string) {
-  const { workout, exercises } = await convertWorkoutToDatabase(workoutData);
-  if (overrideUserId) {
-    workout.user_id = overrideUserId;
-  }
-  // Insert workout first
-  const { data: newWorkout, error: workoutError } = await supabase
-    .from('workouts')
-    .insert(workout)
-    .select()
-    .single();
-  if (workoutError) throw workoutError;
-  if (!newWorkout) throw new Error('Failed to create workout');
-  const exercisesWithWorkoutId = exercises.map((exercise: any) => ({
-    ...exercise,
-    workout_id: newWorkout.id,
-  }));
-  const { error: exercisesError } = await supabase
-    .from('exercises')
-    .insert(exercisesWithWorkoutId);
-  if (exercisesError) throw exercisesError;
-  // Return the complete workout
-  return await databaseService.getWorkout(newWorkout.id) as FrontendWorkout;
-}; 
