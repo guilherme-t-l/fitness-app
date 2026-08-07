@@ -9,6 +9,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Extract a numeric weight from strings like "70kg", "135 lbs", "70". */
+export function parseWeight(weight: string | undefined | null): number | null {
+  if (!weight) return null
+  const match = weight.trim().match(/^(\d+(?:\.\d+)?)/)
+  if (!match) return null
+  const value = Number(match[1])
+  return Number.isFinite(value) ? value : null
+}
+
+/** Preserve unit suffix from a weight string when formatting deltas (e.g. "kg", " lbs"). */
+export function weightUnit(weight: string | undefined | null): string {
+  if (!weight) return ""
+  const match = weight.trim().match(/^\d+(?:\.\d+)?\s*(.*)$/)
+  const unit = match?.[1]?.trim()
+  return unit ? (unit.startsWith(" ") ? unit : ` ${unit}`) : ""
+}
+
 // Parses a rest time string like '60s', '1m', '90', '2min' into seconds
 export function parseRestTime(rest: string | undefined): number {
   if (!rest) return 60;

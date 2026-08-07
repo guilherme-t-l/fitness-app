@@ -53,6 +53,8 @@ export interface FrontendExercise {
 export interface WorkoutHistory {
   id: string
   workoutId: string
+  workoutName: string
+  categories: string[]
   completedAt: string
   durationMinutes?: number
   notes?: string
@@ -68,6 +70,31 @@ export interface ExercisePerformance {
   weightUsed?: string
   notes?: string
   createdAt: string
+}
+
+/** Performance row joined with session completion time for progress trends. */
+export interface ExercisePerformanceHistory {
+  id: string
+  workoutHistoryId: string
+  exerciseId: string
+  exerciseName: string
+  setsCompleted: number
+  repsPerformed?: string
+  weightUsed?: string
+  completedAt: string
+  categories: string[]
+}
+
+export type StrengthDelta = "up" | "down" | "same" | "new" | "unknown"
+
+export interface StrengthTrend {
+  exerciseName: string
+  latestWeight?: string
+  latestReps?: string
+  previousWeight?: string
+  deltaKg: number | null
+  delta: StrengthDelta
+  completedAt: string
 }
 
 // Progress statistics types
@@ -687,12 +714,91 @@ export const databaseService = {
       return data.map((item: any) => ({
         id: item.id,
         workoutId: item.workout_id,
+        workoutName: item.workouts?.name || 'Workout',
+        categories: Array.isArray(item.workouts?.categories)
+          ? item.workouts.categories.filter((c: unknown): c is string => typeof c === 'string')
+          : [],
         completedAt: item.completed_at,
         durationMinutes: item.duration_minutes,
         notes: item.notes
       }))
     } catch (error) {
       console.error('Error fetching workout history:', error)
+      throw error
+    }
+  },
+
+  // Exercise performance across recent sessions (for strength trends)
+  async getExercisePerformanceHistory(
+    limit: number = 200,
+    userId?: string
+  ): Promise<ExercisePerformanceHistory[]> {
+    try {
+      const user_id = userId || await getCurrentUserId()
+      const { data: history, error: historyError } = await supabase
+        .from('workout_history')
+        .select('id, completed_at, workout_id')
+        .eq('user_id', user_id)
+        .order('completed_at', { ascending: false })
+        .limit(60)
+
+      if (historyError) throw historyError
+      if (!history || history.length === 0) return []
+
+      const completedAtById = new Map(
+        history.map((row) => [row.id, row.completed_at as string])
+      )
+      const workoutIdByHistory = new Map(
+        history.map((row) => [row.id, row.workout_id as string])
+      )
+      const historyIds = history.map((row) => row.id)
+      const workoutIds = Array.from(new Set(history.map((row) => row.workout_id)))
+
+      const [{ data, error }, { data: workouts, error: workoutsError }] = await Promise.all([
+        supabase
+          .from('exercise_performance')
+          .select(
+            'id, workout_history_id, exercise_id, exercise_name, sets_completed, reps_performed, weight_used'
+          )
+          .in('workout_history_id', historyIds)
+          .limit(limit),
+        supabase.from('workouts').select('id, categories').in('id', workoutIds),
+      ])
+
+      if (error) throw error
+      if (workoutsError) throw workoutsError
+      if (!data) return []
+
+      const categoriesByWorkout = new Map<string, string[]>()
+      for (const workout of workouts || []) {
+        const categories = Array.isArray(workout.categories)
+          ? workout.categories.filter((c: unknown): c is string => typeof c === 'string')
+          : []
+        categoriesByWorkout.set(workout.id, categories)
+      }
+
+      return data
+        .map((item: any) => {
+          const workoutId = workoutIdByHistory.get(item.workout_history_id)
+          return {
+            id: item.id,
+            workoutHistoryId: item.workout_history_id,
+            exerciseId: item.exercise_id,
+            exerciseName: item.exercise_name,
+            setsCompleted: item.sets_completed,
+            repsPerformed: item.reps_performed || undefined,
+            weightUsed: item.weight_used || undefined,
+            completedAt: completedAtById.get(item.workout_history_id) || '',
+            categories: workoutId ? categoriesByWorkout.get(workoutId) || [] : [],
+          }
+        })
+        .filter((row) => row.completedAt)
+        .sort(
+          (a, b) =>
+            new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+        )
+    } catch (error) {
+      console.error('Error fetching exercise performance history:', error)
       throw error
     }
   },

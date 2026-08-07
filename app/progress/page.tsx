@@ -1,8 +1,6 @@
 "use client"
 
 import { Loader2 } from "lucide-react"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, BarChart, Bar } from "recharts"
 import { useProgress } from "@/hooks/useProgress"
 import { ProgressMetrics } from "@/components/progress-metrics"
 import { useAuth } from '@/components/AuthProvider'
@@ -14,12 +12,12 @@ export default function ProgressPage() {
   const {
     stats,
     categoryBreakdown,
-    weeklyGoal,
-    monthlyGoal,
-    weeklyProgress,
-    monthlyProgress,
-    weeklyActivity,
-    monthlyTrend,
+    weeklySets,
+    strengthTrends,
+    recentSessions,
+    weeklySetsByMuscle,
+    monthlySetsByMuscle,
+    monthlySessionsByWeek,
     loading,
     error
   } = useProgress(user?.id)
@@ -59,66 +57,7 @@ export default function ProgressPage() {
         </p>
       </header>
 
-      <ProgressMetrics
-        stats={stats}
-        categoryBreakdown={categoryBreakdown}
-        weeklyGoal={weeklyGoal}
-        monthlyGoal={monthlyGoal}
-        weeklyProgress={weeklyProgress}
-        monthlyProgress={monthlyProgress}
-      />
-
-      {stats.totalCompletions > 0 && (
-        <section className="space-y-10 border-t border-border/70 pt-10">
-          <h2 className="font-display text-2xl font-normal text-foreground">Activity</h2>
-          <div className="space-y-12">
-            <div>
-              <p className="text-sm text-muted-foreground mb-4">This week</p>
-              <ChartContainer
-                config={{
-                  workouts: {
-                    label: "Sessions",
-                    color: "hsl(var(--chart-1))",
-                  },
-                }}
-                className="h-[200px] w-full"
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyActivity}>
-                    <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="workouts" fill="var(--color-workouts)" radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-4">Monthly trend</p>
-              <ChartContainer
-                config={{
-                  workouts: {
-                    label: "Sessions",
-                    color: "hsl(var(--chart-2))",
-                  },
-                }}
-                className="h-[200px] w-full"
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={monthlyTrend}>
-                    <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Line type="monotone" dataKey="workouts" stroke="var(--color-workouts)" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {stats.totalCompletions === 0 && (
+      {stats.totalCompletions === 0 ? (
         <section className="border-t border-border/70 pt-12 text-center space-y-4">
           <p className="font-display text-2xl text-foreground">Nothing logged yet</p>
           <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">
@@ -128,6 +67,17 @@ export default function ProgressPage() {
             <Link href="/workouts">Go to workouts</Link>
           </Button>
         </section>
+      ) : (
+        <ProgressMetrics
+          stats={stats}
+          weeklySets={weeklySets}
+          weeklySetsByMuscle={weeklySetsByMuscle}
+          monthlySetsByMuscle={monthlySetsByMuscle}
+          monthlySessionsByWeek={monthlySessionsByWeek}
+          strengthTrends={strengthTrends}
+          recentSessions={recentSessions}
+          categoryBreakdown={categoryBreakdown}
+        />
       )}
     </div>
   )
