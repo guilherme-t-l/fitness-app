@@ -8,6 +8,7 @@ import type { Database } from './supabase'
 import { getSupabaseErrorMessage } from './supabaseError'
 import { runSerializedWorkoutExerciseWrite } from './workoutExerciseWriteQueue'
 import { getCurrentUserId } from './utils'
+import { normalizeExerciseName, parseMuscleGroups } from './exercise-library'
 
 type Workout = Database['public']['Tables']['workouts']['Row']
 type WorkoutInsert = Database['public']['Tables']['workouts']['Insert']
@@ -47,6 +48,7 @@ export interface FrontendExercise {
   notes?: string
   adjustment?: string
   description?: string
+  muscleGroups?: string[]
 }
 
 // Workout history types
@@ -82,6 +84,9 @@ export interface ExercisePerformanceHistory {
   repsPerformed?: string
   weightUsed?: string
   completedAt: string
+  /** Snapshot of exercise muscle tags at finish (preferred for Progress). */
+  muscleGroups: string[]
+  /** Parent workout categories (fallback when muscleGroups is empty). */
   categories: string[]
 }
 
@@ -134,6 +139,7 @@ const convertWorkoutToFrontend = (workout: Workout, exercises: Exercise[]): Fron
       notes: exercise.notes || undefined,
       adjustment: exercise.adjustment || undefined,
       description: exercise.description || undefined,
+      muscleGroups: parseMuscleGroups((exercise as any).muscle_groups),
     }))
   }
 }
@@ -165,6 +171,7 @@ const convertWorkoutToDatabase = async (workout: Omit<FrontendWorkout, 'id' | 'c
     notes: exercise.notes,
     adjustment: exercise.adjustment,
     description: exercise.description,
+    muscle_groups: parseMuscleGroups(exercise.muscleGroups),
     order_index: index,
     // user_id will be set after workout creation if needed
   }))
@@ -336,6 +343,7 @@ export const databaseService = {
             notes: exercise.notes,
             adjustment: exercise.adjustment,
             description: exercise.description,
+            muscle_groups: parseMuscleGroups(exercise.muscleGroups),
             order_index: index,
           }))
 
@@ -455,7 +463,7 @@ export const databaseService = {
       if (performances && performances.length > 0 && historyRow?.id) {
         const { data: currentExercises, error: exercisesError } = await supabase
           .from('exercises')
-          .select('id, name, order_index')
+          .select('id, name, order_index, muscle_groups')
           .eq('workout_id', id)
           .order('order_index', { ascending: true })
         if (exercisesError) {
@@ -484,6 +492,7 @@ export const databaseService = {
               reps_performed: performance.repsPerformed || null,
               weight_used: performance.weightUsed || null,
               notes: performance.notes || null,
+              muscle_groups: parseMuscleGroups((matched as any).muscle_groups),
             }
           })
           .filter((row): row is NonNullable<typeof row> => row !== null)
@@ -758,7 +767,7 @@ export const databaseService = {
         supabase
           .from('exercise_performance')
           .select(
-            'id, workout_history_id, exercise_id, exercise_name, sets_completed, reps_performed, weight_used'
+            'id, workout_history_id, exercise_id, exercise_name, sets_completed, reps_performed, weight_used, muscle_groups'
           )
           .in('workout_history_id', historyIds)
           .limit(limit),
@@ -789,6 +798,7 @@ export const databaseService = {
             repsPerformed: item.reps_performed || undefined,
             weightUsed: item.weight_used || undefined,
             completedAt: completedAtById.get(item.workout_history_id) || '',
+            muscleGroups: parseMuscleGroups(item.muscle_groups),
             categories: workoutId ? categoriesByWorkout.get(workoutId) || [] : [],
           }
         })
@@ -800,6 +810,44 @@ export const databaseService = {
     } catch (error) {
       console.error('Error fetching exercise performance history:', error)
       throw error
+    }
+  },
+
+  /** Most recent non-empty muscle tags per normalized exercise name for this user. */
+  async getUserExerciseMuscleHistory(userId?: string): Promise<Map<string, string[]>> {
+    const result = new Map<string, string[]>()
+    try {
+      const user_id = userId || await getCurrentUserId()
+      const { data: workouts, error: workoutsError } = await supabase
+        .from('workouts')
+        .select('id')
+        .eq('user_id', user_id)
+
+      if (workoutsError) throw workoutsError
+      if (!workouts || workouts.length === 0) return result
+
+      const workoutIds = workouts.map((workout) => workout.id)
+      const { data: exercises, error } = await supabase
+        .from('exercises')
+        .select('name, muscle_groups, created_at')
+        .in('workout_id', workoutIds)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      for (const exercise of exercises || []) {
+        const normalized = normalizeExerciseName(exercise.name)
+        if (!normalized || result.has(normalized)) continue
+        const muscles = parseMuscleGroups((exercise as any).muscle_groups)
+        if (muscles.length > 0) {
+          result.set(normalized, muscles)
+        }
+      }
+
+      return result
+    } catch (error) {
+      console.error('Error fetching user exercise muscle history:', error)
+      return result
     }
   },
 
@@ -834,6 +882,7 @@ export const databaseService = {
           notes: exercise.notes,
           adjustment: exercise.adjustment,
           description: exercise.description,
+          muscle_groups: parseMuscleGroups(exercise.muscleGroups),
           order_index: index,
         }))
 

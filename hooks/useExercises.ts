@@ -10,6 +10,7 @@ export interface Exercise {
   notes?: string
   adjustment?: string
   description?: string
+  muscleGroups?: string[]
 }
 
 // Custom hook for managing a list of exercises

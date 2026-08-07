@@ -106,6 +106,7 @@ There are **no** Next.js API routes or server actions for domain data. All reads
 | `notes` | TEXT | Optional |
 | `adjustment` | VARCHAR(100) | Machine position / setup |
 | `description` | TEXT | Optional (UI often labels as notes) |
+| `muscle_groups` | JSONB | Array of muscle strings (Chest, Back, …); auto-resolved from name |
 | `order_index` | INTEGER | DnD ordering |
 | `created_at` | TIMESTAMPTZ | |
 
@@ -132,9 +133,10 @@ There are **no** Next.js API routes or server actions for domain data. All reads
 | `reps_performed` | VARCHAR(50) | Optional |
 | `weight_used` | VARCHAR(50) | Optional string (e.g. `"70kg"`) |
 | `notes` | TEXT | Optional |
+| `muscle_groups` | JSONB | Snapshot of exercise muscles at finish |
 | `created_at` | TIMESTAMPTZ | |
 
-Written on session finish; read by Progress for strength trends and weekly sets.
+Written on session finish; read by Progress for strength trends and sets by muscle.
 
 #### `categories`
 
@@ -200,7 +202,7 @@ workout_history  1 ──* exercise_performance
 | Create | Dialog + `CreateWorkoutForm` (primary path) |
 | Edit | Dialog + `EditWorkoutForm` |
 | Delete | Immediate delete (no confirmation dialog) |
-| Exercise builder | Add/remove/reorder via @dnd-kit + up/down; fields: name (autocomplete library), sets, reps, weight, rest, adjustment (“Machine Position”), description |
+| Exercise builder | Add/remove/reorder via @dnd-kit + up/down; fields: name (autocomplete + auto muscle resolve), muscle chips, sets, reps, weight, rest, adjustment (“Machine Position”), description |
 | Duration | Estimated duration auto-calculated unless user overrides |
 | Start | Navigate to `/workouts/[id]` |
 
@@ -224,7 +226,7 @@ workout_history  1 ──* exercise_performance
 | Requirement | Detail |
 |-------------|--------|
 | This week hero | Session count for the current week + soft row (this month, lifetime, weekly sets, streak) |
-| Sets by muscle group | Bar chart (muscle on X, sets on Y); Week/Month toggle (calendar week vs last 30 days) |
+| Sets by muscle group | Bar chart (muscle on X, sets on Y); Week/Month toggle. Counts from `exercise_performance.muscle_groups`; falls back to workout `categories`, then Uncategorized |
 | Sessions by week | Line chart of sessions per week over the last 5 weeks |
 | Getting stronger | Up to 5 exercises from `exercise_performance`; last weight×reps and ↑/↓/—/New vs prior session |
 | Recent sessions | Last 8 from `workout_history` (name, date, duration) |
@@ -363,6 +365,7 @@ cp .env.example .env.local
 #    supabase-schema.sql
 #    migration-workout-type.sql
 #    migration-categories-table.sql
+#    migration-exercise-muscle-groups.sql
 #    supabase-authentication-setup.sql
 #    fix-progress-functions.sql   # if stats RPCs need repair
 

@@ -154,7 +154,7 @@ export function ProgressMetrics({
 
         {muscleSetsData.length === 0 ? (
           <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-            Complete a session with categories to see sets by muscle group.
+            Complete a session to see sets by muscle group.
           </p>
         ) : (
           <ChartContainer

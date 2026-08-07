@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,10 +12,14 @@ import { Plus, Trash2, Save, ChevronUp, ChevronDown, GripVertical } from "lucide
 import { AutocompleteInput } from "@/components/ui/autocomplete-input"
 import { ExerciseDndWrapper } from "@/components/ui/exercise-dnd-wrapper"
 import { MultiSelect } from "@/components/ui/multi-select"
+import { MuscleGroupChips } from "@/components/exercise/MuscleGroupChips"
 import { calculateWorkoutDuration } from "@/lib/utils"
 import { useCategories } from "@/hooks/useCategories"
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/AuthProvider'
 import { cn } from "@/lib/utils"
+import { EXERCISE_SUGGESTIONS, resolveMuscleGroups } from "@/lib/exercise-library"
+import { databaseService } from "@/lib/database"
 
 interface Exercise {
   id: string
@@ -27,6 +31,7 @@ interface Exercise {
   notes?: string
   adjustment?: string
   description?: string
+  muscleGroups?: string[]
 }
 
 interface Workout {
@@ -47,47 +52,63 @@ interface EditWorkoutFormProps {
   onSubmit: (workout: Omit<Workout, "id" | "createdAt" | "completions">) => void
 }
 
-const exerciseLibrary = [
-  "Push-ups",
-  "Pull-ups",
-  "Squats",
-  "Deadlifts",
-  "Bench Press",
-  "Overhead Press",
-  "Rows",
-  "Lunges",
-  "Planks",
-  "Burpees",
-  "Mountain Climbers",
-  "Jumping Jacks",
-  "Bicep Curls",
-  "Tricep Dips",
-  "Leg Press",
-  "Lat Pulldowns",
-  "Shoulder Press",
-  "Chest Flyes",
-  "Leg Curls",
-  "Calf Raises",
-  "Dips",
-  "Face Pulls",
-  "Hip Thrusts",
-  "Russian Twists",
-  "Plank Variations",
-]
-
 export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
+  const { user } = useAuth()
   const [workoutName, setWorkoutName] = useState(workout.name)
   const [workoutDescription, setWorkoutDescription] = useState(workout.description)
   const [workoutType, setWorkoutType] = useState<"Strength" | "Hypertrophy" | "Endurance" | "Cardio" | "Mobility" | "Skill" | "Recovery">(workout.workoutType)
   const [categories, setCategories] = useState<string[]>(workout.categories)
   const [estimatedDuration, setEstimatedDuration] = useState(workout.estimatedDuration)
   const [durationManuallyEdited, setDurationManuallyEdited] = useState(false)
-  const [exercises, setExercises] = useState<Exercise[]>(workout.exercises)
+  const [exercises, setExercises] = useState<Exercise[]>(
+    workout.exercises.map((exercise) => ({
+      ...exercise,
+      muscleGroups: exercise.muscleGroups || [],
+    }))
+  )
+  const [muscleHistory, setMuscleHistory] = useState<Map<string, string[]>>(new Map())
+  const manualMuscleOverrides = useRef(new Set<string>())
+  const nameResolveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const { toast } = useToast();
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const { categories: availableCategories, loading: categoriesLoading, saveNewCategory, deleteCategory } = useCategories()
+  const { categories: availableCategories, loading: categoriesLoading, saveNewCategory, deleteCategory } = useCategories(user?.id)
+
+  useEffect(() => {
+    let cancelled = false
+    databaseService.getUserExerciseMuscleHistory(user?.id).then((history) => {
+      if (!cancelled) setMuscleHistory(history)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
+
+  // Fill empty muscle tags from history/aliases once history is available
+  useEffect(() => {
+    setExercises((prev) =>
+      prev.map((exercise) => {
+        if (manualMuscleOverrides.current.has(exercise.id)) return exercise
+        if ((exercise.muscleGroups || []).length > 0) return exercise
+        if (!exercise.name.trim()) return exercise
+        return {
+          ...exercise,
+          muscleGroups: resolveMuscleGroups(exercise.name, {
+            historyByName: muscleHistory,
+            workoutCategories: categories,
+          }),
+        }
+      })
+    )
+  }, [muscleHistory, categories])
+
+  useEffect(() => {
+    return () => {
+      nameResolveTimers.current.forEach((timer) => clearTimeout(timer))
+      nameResolveTimers.current.clear()
+    }
+  }, [])
 
   const handleNewCategory = async (newCategory: string) => {
     await saveNewCategory(newCategory)
@@ -97,6 +118,42 @@ export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
     await deleteCategory(category)
   }
 
+  const applyResolvedMuscles = useCallback((id: string, name: string, workoutCats: string[]) => {
+    if (manualMuscleOverrides.current.has(id)) return
+    const muscles = resolveMuscleGroups(name, {
+      historyByName: muscleHistory,
+      workoutCategories: workoutCats,
+    })
+    setExercises((prev) =>
+      prev.map((exercise) =>
+        exercise.id === id ? { ...exercise, muscleGroups: muscles } : exercise
+      )
+    )
+  }, [muscleHistory])
+
+  const handleExerciseNameChange = (id: string, value: string) => {
+    manualMuscleOverrides.current.delete(id)
+    setExercises((prev) =>
+      prev.map((exercise) => (exercise.id === id ? { ...exercise, name: value } : exercise))
+    )
+    const existing = nameResolveTimers.current.get(id)
+    if (existing) clearTimeout(existing)
+    const timer = setTimeout(() => {
+      applyResolvedMuscles(id, value, categories)
+      nameResolveTimers.current.delete(id)
+    }, 300)
+    nameResolveTimers.current.set(id, timer)
+  }
+
+  const handleMuscleGroupsChange = (id: string, muscles: string[]) => {
+    manualMuscleOverrides.current.add(id)
+    setExercises((prev) =>
+      prev.map((exercise) =>
+        exercise.id === id ? { ...exercise, muscleGroups: muscles } : exercise
+      )
+    )
+  }
+
   const addExercise = () => {
     const newExercise: Exercise = {
       id: Date.now().toString(),
@@ -104,6 +161,7 @@ export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
       sets: 3,
       reps: "10",
       restTime: "60s",
+      muscleGroups: [],
     }
     setExercises([...exercises, newExercise])
   }
@@ -316,9 +374,17 @@ export function EditWorkoutForm({ workout, onSubmit }: EditWorkoutFormProps) {
                     <Label className="text-xs text-muted-foreground">Exercise</Label>
                     <AutocompleteInput
                       value={exercise.name}
-                      onChange={(value) => updateExercise(exercise.id, "name", value)}
+                      onChange={(value) => handleExerciseNameChange(exercise.id, value)}
                       placeholder="Type exercise name…"
-                      suggestions={exerciseLibrary}
+                      suggestions={[...EXERCISE_SUGGESTIONS]}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Muscles</Label>
+                    <MuscleGroupChips
+                      selected={exercise.muscleGroups || []}
+                      onChange={(muscles) => handleMuscleGroupsChange(exercise.id, muscles)}
+                      className="mt-1.5"
                     />
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

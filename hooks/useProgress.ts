@@ -153,9 +153,14 @@ export function useProgress(userId?: string) {
         if (new Date(row.completedAt).getTime() < sinceMs) continue
         const sets = row.setsCompleted || 0
         if (sets <= 0) continue
-        const categories = row.categories.length > 0 ? row.categories : ['Uncategorized']
-        for (const category of categories) {
-          totals.set(category, (totals.get(category) || 0) + sets)
+        const muscles =
+          row.muscleGroups.length > 0
+            ? row.muscleGroups
+            : row.categories.length > 0
+              ? row.categories
+              : ['Uncategorized']
+        for (const muscle of muscles) {
+          totals.set(muscle, (totals.get(muscle) || 0) + sets)
         }
       }
 
