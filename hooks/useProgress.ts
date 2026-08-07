@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   databaseService,
   type WorkoutStats,
-  type CategoryBreakdown,
   type WorkoutHistory,
   type ExercisePerformanceHistory,
   type StrengthTrend,
@@ -94,7 +93,6 @@ export function useProgress(userId?: string) {
     thisMonthWorkouts: 0,
     currentStreak: 0
   })
-  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([])
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistory[]>([])
   const [performanceHistory, setPerformanceHistory] = useState<ExercisePerformanceHistory[]>([])
   const [loading, setLoading] = useState(true)
@@ -105,15 +103,13 @@ export function useProgress(userId?: string) {
       setLoading(true)
       setError(null)
 
-      const [statsData, categoryData, historyData, performanceData] = await Promise.all([
+      const [statsData, historyData, performanceData] = await Promise.all([
         databaseService.getWorkoutStats(userId),
-        databaseService.getCategoryBreakdown(userId),
         databaseService.getWorkoutHistory(365, userId),
         databaseService.getExercisePerformanceHistory(200, userId),
       ])
 
       setStats(statsData)
-      setCategoryBreakdown(categoryData)
       setWorkoutHistory(historyData)
       setPerformanceHistory(performanceData)
     } catch (err) {
@@ -131,14 +127,6 @@ export function useProgress(userId?: string) {
   useEffect(() => {
     loadProgressData()
   }, [loadProgressData])
-
-  const topCategories = useMemo(
-    () =>
-      categoryBreakdown
-        .filter((cat) => cat.completionCount > 0)
-        .slice(0, 5),
-    [categoryBreakdown]
-  )
 
   const recentSessions = useMemo(
     () => workoutHistory.slice(0, 8),
@@ -215,9 +203,7 @@ export function useProgress(userId?: string) {
 
   return {
     stats,
-    categoryBreakdown,
     workoutHistory,
-    topCategories,
     recentSessions,
     strengthTrends,
     weeklySets,
